@@ -1,0 +1,14 @@
+defaults:
+  - base_data
+
+_target_: src.datamodules.DartsExampleDataModule
+dataset_name: ???
+chunk_length: null
+data_variables:
+  target: null
+train_val_test_split:
+  train: 0.5
+  val: 0.25
+  test: 0.25
+
+

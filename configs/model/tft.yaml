@@ -1,0 +1,8 @@
+defaults:
+  - base_torch
+
+_target_: darts.models.forecasting.tft_model.TFTModel
+
+
+
+

@@ -1,0 +1,8 @@
+# example of file for storing private and user specific script variables, like keys or system paths
+# rename it to "vars.sh" (excluded from version control by default)
+
+CONDA_ENV=my-conda-env
+SSH_HOST=hostname-or-ip-of-slurm-server
+SSH_USER=username-on-host
+OPTUNA_DB=logs/optuna/hyperopt.db
+WEBHOOK_URL="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"

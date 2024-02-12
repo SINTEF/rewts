@@ -1,0 +1,13 @@
+defaults:
+  - base_torch
+
+_target_: darts.models.forecasting.block_rnn_model.BlockRNNModel
+model: LSTM
+hidden_dim: 25
+n_rnn_layers: 2
+hidden_fc_sizes: null
+dropout: 0.0
+
+
+
+

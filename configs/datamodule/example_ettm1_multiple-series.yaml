@@ -1,0 +1,22 @@
+defaults:
+  - base_darts_example
+
+dataset_name: "ETTm1"
+data_variables:
+  target:
+    - "OT"
+  past_covariates:
+    - "HUFL"
+    - "HULL"
+    - "MUFL"
+    - "MULL"
+  future_covariates:
+    - "LUFL"
+    - "LULL"
+train_val_test_split:
+  train: [[800, 950], [1000, 1200]]
+  val: [1250, 1350]
+  test: [[1450, 1550], [1600, 1750]]
+#freq: "3M"   # the sampling frequency of the data as a Timestamp string (quarterly)
+
+

@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - base_local
+
+model:
+  _target_: darts.models.forecasting.arima.ARIMA
+  p: 4 # Order (number of time lags) of the autoregressive model (AR).
+  d: 0 # The order of differentiation; i.e., the number of times the data have had past values subtracted
+  q: 0 # The size of the moving average window
+  seasonal_order: [0, 0, 0, 0] # The (P,D,Q,s) order of the seasonal component for the AR parameters, differences, MA parameters and periodicity.
+  trend: null # Parameter controlling the deterministic trend. ‘n’ indicates no trend, ‘c’ a constant term, ‘t’ linear trend in time, and ‘ct’ includes both. Default is ‘c’ for models without integration, and no trend for models with integration.
+  add_encoders: null

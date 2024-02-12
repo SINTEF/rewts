@@ -1,0 +1,30 @@
+# @package _global_
+
+defaults:
+  - base_data@datamodule
+  - sine_data_train.yaml@datamodule
+
+datamodule:
+  _target_: src.datamodules.sine_datamodule.SineDataModule
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+  dataset_name: "sine"
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Scaler
+        scaler:
+          _target_: sklearn.preprocessing.StandardScaler
+      - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
+        fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
+  data_variables:
+    target:
+      - "sine"
+
+eval:
+  kwargs:
+    start_format: "position"
+
+
+

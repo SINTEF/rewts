@@ -1,0 +1,76 @@
+dataset_name: "sine-test"
+data_args:
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 8
+    amplitude: 0.75
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 0.75
+    amplitude: 10
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 7
+    amplitude: 3
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 11
+    amplitude: 0.5
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 0.65
+    amplitude: 5
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 4
+    amplitude: 1.25
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 2
+    amplitude: 3
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 5
+    amplitude: 4
+    phase: 0
+
+

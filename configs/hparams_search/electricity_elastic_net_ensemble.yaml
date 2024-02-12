@@ -1,0 +1,27 @@
+# @package _global_
+
+# example hyperparameter optimization of some experiment with Optuna:
+# python train.py -m hparams_search=mnist_optuna experiment=example
+
+defaults:
+  - electricity_elastic_net.yaml
+
+model_type: "ensemble"
+
+LOOKBACK_MIN_LENGTH: 100
+MAX_LAGS: ${eval:'${LOOKBACK_MIN_LENGTH} - ${eval.kwargs.forecast_horizon}'}
+
+# here we define Optuna hyperparameter search
+# it optimizes for value returned from function with @hydra.main decorator
+# docs: https://hydra.cc/docs/next/plugins/optuna_sweeper
+hydra:
+  sweeper:
+    # name of the study to persist optimization results
+    study_name: "electricity-elastic-net-ensemble"
+    # define hyperparameter search space
+    params:
+      ++model.lags: range(2, ${MAX_LAGS}, 2) # between 2 hours and MAX_LAGS, with 1 hour increments
+      ++model.output_chunk_length: choice(1, 6, 12, 24)
+      ++model.model.l1_ratio: interval(0.0, 1.0)
+      ++datamodule.chunk_length: range(336, 2688, 48)  # between 7 and 48 days with 1 day increments
+      ++ensemble.lookback_data_length: range(${LOOKBACK_MIN_LENGTH}, ${LOOKBACK_MAX_LENGTH}, 8)

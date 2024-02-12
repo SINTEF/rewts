@@ -1,0 +1,115 @@
+# @package _global_
+
+# example hyperparameter optimization of some experiment with Optuna:
+# python train.py -m hparams_search=mnist_optuna experiment=example
+
+defaults:
+  - override /experiment: chunk_base
+  - override /eval: backtest
+  - override /hydra/sweeper: optuna
+
+# choose metric which will be optimized by Optuna
+# metrics have the naming pattern {data split}_{metric name} where metric name is the name of the function or class implementing the metric.
+# make sure this is the correct name of some metric defined in:
+  # Torch models:     model.loss_fn or model.torch_metrics
+  # Non-torch models: eval.kwargs.metric
+optimized_metric: "test_mse"
+
+model_type: ??? # ensemble or global
+
+logger:
+  mlflow:
+    experiment_name: "hpopt-${hydra:runtime.choices.datamodule}-${hydra:runtime.choices.model}-${model_type}"
+  tensorboard: null
+
+# Sets callbacks to monitor same metric as hyperparameter optimization and same higher/lower is better.
+callbacks:
+  early_stopping:
+    monitor: "val_loss"
+    patience: 10
+    mode: ${eval:'"${hydra:sweeper.direction}"[:3]'}
+  model_checkpoint:
+    monitor: "val_loss"
+    mode: ${eval:'"${hydra:sweeper.direction}"[:3]'}
+
+validate: False
+test: True
+
+trainer:
+  max_epochs: 1000
+
+predict:
+  inverse_transform_data: False
+
+LOOKBACK_MAX_LENGTH: 300
+HOPT_DATA_FRACTION: 0.33
+
+ensemble_disable_logger: True
+
+datamodule:
+  train_val_test_split:  # relative to chunk_data_length
+    train: 0.75
+    val: 0.25
+    test: null
+  chunk_idx: null
+
+eval_datamodule:
+  train_val_test_split:
+    train: null
+    val: null
+    test: 1.0
+  chunk_idx: null
+  crop_data_range:
+    - ${eval:'int(${datamodule.dataset_length} * ${HOPT_DATA_FRACTION})'}
+    - ${eval:'int(${datamodule.dataset_length} * ${HOPT_DATA_FRACTION} * 1.1)'}
+
+eval:
+  split: "test"
+  kwargs:
+    start: ${LOOKBACK_MAX_LENGTH}
+  inverse_transform_data: False
+
+
+ckpt: "best"
+
+plot_datasets: false
+
+ensemble:
+  lookback_data_length: ${LOOKBACK_MAX_LENGTH}
+
+# here we define Optuna hyperparameter search
+# it optimizes for value returned from function with @hydra.main decorator
+# docs: https://hydra.cc/docs/next/plugins/optuna_sweeper
+hydra:
+  mode: "MULTIRUN" # set hydra to multirun by default if this config is attached
+
+  sweeper:
+    _target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
+
+    # storage URL to persist optimization results
+    # for example, you can use SQLite if you set 'sqlite:///example.db'
+    # not possible to set to hydra.output_dir because db is created before output_dir
+    storage: "sqlite:////${paths.root_dir}/logs/optuna/hyperopt.db"
+
+    # name of the study to persist optimization results
+    study_name: ???
+
+    # number of parallel workers
+    n_jobs: 1
+
+    # 'minimize' or 'maximize' the objective
+    direction: "minimize"
+
+    # total number of runs that will be executed
+    n_trials: 100
+
+    # choose Optuna hyperparameter sampler
+    # you can choose bayesian sampler (tpe), random search (without optimization), grid sampler, and others
+    # docs: https://optuna.readthedocs.io/en/stable/reference/samplers.html
+    sampler:
+      _target_: optuna.samplers.TPESampler
+      seed: 1234
+      n_startup_trials: 15 # number of random sampling runs before optimization starts
+
+    # define hyperparameter search space
+    params: ???

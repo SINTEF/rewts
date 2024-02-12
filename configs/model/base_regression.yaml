@@ -1,0 +1,12 @@
+# @package _global_
+
+defaults:
+  - base_nontorch
+
+model:
+  _target_: ???
+
+eval:
+  kwargs:
+    retrain: False  # By default, models are retrained (causually, i.e. when predicting sample 100 it is trained on samples 1-99) on dataset when evaluated (val/test).
+

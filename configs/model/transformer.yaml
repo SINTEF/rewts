@@ -1,0 +1,8 @@
+defaults:
+  - base_torch
+
+_target_: darts.models.forecasting.transformer_model.TransformerModel
+
+
+
+

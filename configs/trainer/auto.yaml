@@ -1,0 +1,6 @@
+defaults:
+  - default.yaml
+
+# Auto will use gpu if available, else fall back to cpu
+accelerator: auto
+devices: 1

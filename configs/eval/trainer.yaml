@@ -1,0 +1,7 @@
+defaults:
+  - default
+
+runner: "trainer"  # which method to use to perform evaluation. One of [backtest, trainer, null] (null will choose trainer for pytorch and backtest if not)
+#The default backtest works for all models, but pytorch models can achieve substantial speed improvements by using trainer
+kwargs: null  # keyword arguments passed to the backtest runner. See backtest documentation
+

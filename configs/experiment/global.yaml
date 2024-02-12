@@ -1,0 +1,33 @@
+# @package _global_
+# Experiment config that trains one global model on all concatenated chunks up until the chunk_idx argument
+defaults:
+  - chunk_base
+  - _self_
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+chunk_idx: ${chunk_idx_end}
+
+datamodule:
+  train_val_test_split:
+    train: 0.9
+    val: 0.1
+    test: null
+  chunk_idx: null
+  crop_data_range:    # crop dataset to match ensemble
+    - ${eval:'${chunk_idx_start} * ${datamodule.chunk_length}'}
+    - ${eval:'(${chunk_idx} + 1) * ${datamodule.chunk_length}'}
+
+logger:
+  mlflow:
+    tags:
+      ensemble: False
+
+eval:
+  inverse_transform_data:
+    partial_ok: True
+
+predict:
+  inverse_transform_data:
+    partial_ok: True

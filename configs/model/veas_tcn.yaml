@@ -1,0 +1,29 @@
+# @package _global_
+
+defaults:
+  - base_torch
+
+model:
+  _target_: darts.models.forecasting.tcn_model.TCNModel
+  input_chunk_length: 108
+  kernel_size: 3
+  num_filters: 5
+  output_chunk_length: 12
+  weight_norm: True
+  num_layers: null  # will set to get full history coverage
+  loss_fn:
+      _target_: torch.nn.MSELoss
+
+# TCN does not support future_covariates, therefore swap future and past covariates
+datamodule:
+  data_variables:
+    future_covariates: null
+    past_covariates:
+      - "REDACTED"
+      - "REDACTED"
+      - "REDACTED"
+
+
+
+
+

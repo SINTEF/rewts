@@ -1,0 +1,52 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: electricity
+  - override /eval: backtest.yaml
+  - _self_
+  - override /model: ${datamodule}_tcn # last for possible retrain override
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags:
+  - ${hydra:runtime.choices.datamodule}
+  - ${hydra:runtime.choices.model}
+
+seed: 12345
+
+chunk_idx_start: 0
+chunk_idx_end: ${eval:'${datamodule.dataset_length} // ${datamodule.chunk_length}'}
+
+# Scale the global model's parameters according to the number of models in the corresponding ensemble
+scale_model_parameters: False
+
+callbacks:
+  early_stopping:
+    patience: 10
+
+trainer:
+  max_epochs: 1000
+
+# TODO: perhaps remove this from here? Maybe even import chunk_eval but before in the order so we can overwrite with this file
+eval:
+  kwargs:
+    forecast_horizon: 24
+    stride: 24
+    retrain: False
+
+logger:
+  mlflow:
+    experiment_name: ${mlflow-exp-name:'${hydra:runtime.choices.datamodule}-${hydra:runtime.choices.model}'}
+
+plot_datasets: False
+
+ensemble:
+  _target_: src.models.ensemble_model.TSEnsembleModel
+  fit_forecast_horizon: ${eval.kwargs.forecast_horizon}
+  fit_weights_every: 1
+  lookback_data_length: 150
+  autoregressive_mix: false  # quick benchmarks reveal small differences in metrics, but performance is better with false

@@ -1,0 +1,18 @@
+# disable python warnings if they annoy you
+ignore_warnings: False
+
+# ask user for tags if none are provided in the config
+enforce_tags: True
+
+# pretty print config tree at the start of the run using Rich library. Set to null to disable
+print_config:
+  resolve: True  # controls whether interpolations in the config are resolved or not
+
+# disable output about accelerators and warnings about dataloaders
+disable_pytorch_lightning_output: True
+
+# set to limit the number of cpu threads used by pytorch. If not set, num_threads = num cpu cores
+torch_num_cpu_threads: null
+
+# change the file format of saved figures
+matplotlib_savefig_format: "png"

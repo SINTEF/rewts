@@ -1,0 +1,49 @@
+# @package _global_
+
+model_type: ???
+
+# you can set arguments to set default models
+ensemble_model_dir: ???
+global_model_dir: ???
+
+# Use (override) this argument to control which ensemble / global models are used
+model_dir: ${eval:'["${ensemble_model_dir}/" + str(i) for i in range(${datamodule.chunk_idx})] if "${model_type}" == "ensemble" else "${global_model_dir}/" + str(${datamodule.chunk_idx} - 1)'}
+
+# Experiment config that evaluates a model (ensemble or global)
+eval:
+  kwargs:
+    forecast_horizon: 24
+    stride: 24
+    retrain: False
+    start: ${ensemble.lookback_data_length}
+    metric:
+      - _target_: darts.metrics.metrics.mse
+        _partial_: True
+      - _target_: darts.metrics.metrics.r2_score
+        _partial_: True
+      - _target_: darts.metrics.metrics.coefficient_of_variation
+        _partial_: True
+  runner: "backtest"
+  split: "test"
+
+datamodule:
+  train_val_test_split:
+    val: null
+    test: 1.0
+    train: null
+  crop_data_range: null
+  chunk_length: ???
+  chunk_idx: ???
+
+extras:
+  # disable output about accelerators and warnings about dataloaders
+  disable_pytorch_lightning_output: True
+  #matplotlib_savefig_format: "pdf"
+  print_config:
+    resolve: False
+
+logger:
+  mlflow:
+    experiment_name: ???
+
+

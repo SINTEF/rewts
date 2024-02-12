@@ -1,0 +1,19 @@
+# @package _global_
+
+# Experiment config that trains one global model from start of dataset to end of each chunk, to simulate the setting where new data is streaming in.
+
+defaults:
+  - global
+  - _self_
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+hydra:
+  mode: "MULTIRUN"
+  sweeper:
+    params:
+      ++chunk_idx: range(${chunk_idx_start}, ${chunk_idx_end}, 1)
+
+# Scale the global model's parameters according to the number of models in the corresponding ensemble
+scale_model_parameters: True

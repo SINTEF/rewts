@@ -1,0 +1,60 @@
+# @package _global_
+
+# specify here default configuration
+# order of defaults determines the order in which configs override each other
+defaults:
+  - _self_
+  - fit: default.yaml
+  - eval: backtest.yaml
+  - callbacks: default.yaml
+  - trainer: auto.yaml
+  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  - debug: null
+  - datamodule: electricity.yaml
+  - model: rnn.yaml
+  #- logger: mlflow # Torch models will use tensorboard and mlflow while nontorch models use mlflow by default. Override here or on command line
+  - paths: default.yaml
+  - extras: default.yaml
+  - hydra: default.yaml
+
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: null
+
+  # config for hyperparameter optimization
+  - hparams_search: null
+
+  # optional local config for machine/user specific settings
+  # it's optional since it doesn't need to exist and is excluded from version control
+  - optional local: default.yaml
+
+# task name, determines output directory path
+task_name: "train"
+
+# tags to help you identify your experiments
+# you can overwrite this in experiment configs
+# overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
+# appending lists from command line is currently not supported :(
+# https://github.com/facebookresearch/hydra/issues/1547
+tags: ["dev"]
+
+# set False to skip model training
+train: True
+
+# if validate is True and the model is not a TorchForecastingModel (which will validate as part of training), the model is evaluated on the validation set
+validate: True
+
+# if test is True, the model is evaluated on test set, using best model weights achieved during training and arguments provided in eval block
+test: True
+
+# simply provide checkpoint path to resume training
+ckpt_path: null
+
+# seed for random number generators in pytorch, numpy and python.random
+seed: null
+
+# plot datasets to loggers. Remove or set to false or None to disable.
+plot_datasets:
+  separate_components: True  # if true, will plot each variable in targets, covariates etc. separately, if false: all in one plot
+
+measure_execution_time: True

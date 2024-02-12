@@ -1,0 +1,26 @@
+# @package _global_
+
+# example hyperparameter optimization of some experiment with Optuna:
+# python train.py -m hparams_search=mnist_optuna experiment=example
+
+defaults:
+  - base
+  - override /datamodule: electricity
+  - override /model: electricity_tcn
+
+model_type: "global"
+
+# here we define Optuna hyperparameter search
+# it optimizes for value returned from function with @hydra.main decorator
+# docs: https://hydra.cc/docs/next/plugins/optuna_sweeper
+hydra:
+  sweeper:
+    # name of the study to persist optimization results
+    study_name: "electricity-tcn-global"
+    # define hyperparameter search space
+    params:
+      ++model.input_chunk_length: range(26, 96, 2) # between 13 hours and 48 hours, with 1 hour increments
+      ++model.output_chunk_length: choice(1, 6, 12, 24)
+      ++model.kernel_size: range(3, 15, 1)
+      ++model.num_filters: range(3, 25, 2)
+      ++model.dilation_base: range(2, 4)

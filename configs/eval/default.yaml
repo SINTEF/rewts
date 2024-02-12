@@ -1,0 +1,34 @@
+split: "val"  # which dataset split to evaluate on. One of [test, val]
+runner: null  # which method to use to perform evaluation. One of [backtest, trainer, null] (null will choose trainer for pytorch and backtest if not)
+#The default backtest works for all models, but pytorch models can achieve substantial speed improvements by using trainer
+kwargs:  # keyword arguments passed to the backtest eval runner. See backtest documentation
+  verbose: True
+  #retrain: True  # This argument is already set to False for Global models and True for Locals (which require True). Use this argument here to override.
+  metric:
+    - _target_: darts.metrics.metrics.mse
+      _partial_: True
+    - _target_: darts.metrics.metrics.r2_score
+      _partial_: True
+    - _target_: darts.metrics.metrics.coefficient_of_variation
+      _partial_: True
+  forecast_horizon: 24
+  stride: 24
+  # Note that setting start here will overwrite the values set by the model, which could introduce bugs.
+  # i.e. the start = None logic in darts does not work for all models currently, and start has therefore manually been set in each afflicted model config
+  #start: null
+  retrain: False
+
+save_predictions: True
+measure_execution_time: True
+mc_dropout: False
+log_metrics: True
+metrics_per_series: True # if the split dataset consists of multiple series, setting this argument to True will produce metrics per series on the form {metric_name}_{series_idx}
+plot:  # use to control plotting of predictions. If omitted or plot: null, no plotting is performed.
+  every_n_prediction: 1  # with forecast_horizon > 1 predictions will be overlapping. This argument controls how many predictions to plot
+  covariates: False
+  encodings: False
+  title: null
+  title_add_metrics: True
+  presenter: "savefig"
+  weights: True
+

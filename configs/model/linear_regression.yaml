@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - base_regression
+
+model:
+  _target_: darts.models.forecasting.linear_regression_model.LinearRegressionModel
+  lags: 4
+  output_chunk_length: 1

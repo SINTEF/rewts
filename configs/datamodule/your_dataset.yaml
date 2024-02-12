@@ -1,0 +1,9 @@
+defaults:
+  - base_data
+
+_target_: src.datamodules.your_dataset_datamodule.YourDatasetDataModule
+data_variables:
+  target: "kWh.value"
+#filename: "my_dataset.csv" #you can configure any parameter defined in the __init__ function of your datamodule.
+
+

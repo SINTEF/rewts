@@ -1,0 +1,35 @@
+# @package _global_
+
+eval:
+  split: "test"  # which dataset split to evaluate on. One of [test, val]
+  runner: "backtest"
+  kwargs:
+    forecast_horizon: 30
+    stride: 30
+    start: ${ensemble.lookback_data_length}
+    retrain: False
+  metrics_scale_amplitude: True  # TS-Ensemble specific for sine datamodule
+  #inverse_transform_data:
+  #  partial_ok: True
+
+datamodule:
+  train_val_test_split:
+    val: null
+    test: 1.0
+    train: null
+  chunk_length: null
+  chunk_idx: [0, 1, 2, 3, 4, 5, 6, 7]
+  split_per_segment: False
+
+ensemble:
+  lookback_data_length: 160
+
+extras:
+  # disable output about accelerators and warnings about dataloaders
+  disable_pytorch_lightning_output: True
+  matplotlib_savefig_format: "pdf"
+
+logger:
+  mlflow:
+    experiment_name: "sine-eval"
+

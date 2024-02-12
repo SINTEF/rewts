@@ -1,0 +1,34 @@
+# @package _global_
+
+# Experiment config that evaluates a global model versus an ensemble model iteratively on increasing amounts of chunks, simulating the situation where new data is streaming in.
+defaults:
+  - chunk_eval
+  - _self_
+
+# These two directories should contain chunk_idx_end # models, each trained on one chunk (ensemble) or cumulative chunks (global)
+ensemble_model_dir: "logs/train/multiruns/2023-09-13_12-29-43"
+global_model_dir: "logs/train/multiruns/2023-09-13_12-29-43"
+chunk_idx_end: ???
+model_type: ???
+
+hydra:
+  mode: "MULTIRUN"
+  sweeper:
+    params:
+      ++datamodule.chunk_idx: range(2,${chunk_idx_end}) # starting on chunk #3 (because ensemble requires at least two models, and we predict on the next one)
+
+datamodule:
+  train_val_test_split:
+    val: null
+    test: 1.0
+    train: null
+  chunk_length: ???
+  crop_data_range: null
+  # chunk_idx is set in hydra.sweeper.params
+
+logger:
+  mlflow:
+    experiment_name: ???
+
+model_dir: ${eval:'["${ensemble_model_dir}/" + str(i) for i in range(${datamodule.chunk_idx})] if "${model_type}" == "ensemble" else "${global_model_dir}/" + str(${datamodule.chunk_idx} - 1)'}
+

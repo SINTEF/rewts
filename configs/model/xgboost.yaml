@@ -1,0 +1,7 @@
+defaults:
+  - base_nontorch
+
+_target_: darts.models.forecasting.xgboost.XGBModel
+lags: 4
+output_chunk_length: 1
+early_stopping_rounds: 5

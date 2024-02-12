@@ -1,0 +1,25 @@
+# @package _global_
+
+defaults:
+  - base_local
+
+model:
+  _target_: darts.models.forecasting.theta.FourTheta
+  #season_mode:  # Note that the default season_mode = MULTIPLICATIVE requires data > 0, thus one must change the data pipeline as below or use another season_mode
+  #  _target_: darts.utils.utils.SeasonalityMode
+  #  value: "additive"
+  normalization: False
+
+datamodule:
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Scaler
+        scaler:
+          _target_: sklearn.preprocessing.MinMaxScaler
+          feature_range: # must be tuple, which is not natively supported by hydra. Therefore, use builtins
+            _target_: builtins.tuple
+            _args_:
+              - [ 1e-4, 1 ]
+      - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
+        fill: "auto"  # The default, will use pandas.Dataframe.interpolate()

@@ -1,0 +1,76 @@
+dataset_name: "sine-train"
+data_args:
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 10
+    amplitude: 0.5
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 2
+    amplitude: 2
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 5
+    amplitude: 20
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 1
+    amplitude: 2
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 0.5
+    amplitude: 2
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 8
+    amplitude: 0.5
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 3
+    amplitude: 2
+    phase: 0
+  - t:
+      np_func: "linspace"
+      kwargs:
+        start: 0
+        stop: 37.7
+        num: 500
+    frequency: 1
+    amplitude: 5
+    phase: 0
+
+

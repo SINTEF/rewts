@@ -1,0 +1,39 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - chunk_base
+  - _self_
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+hydra:
+  mode: "MULTIRUN"
+  sweeper:
+    params:
+      ++chunk_idx: range(${chunk_idx_start}, ${chunk_idx_end}, 1)
+
+datamodule:
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+    test: null
+  chunk_idx: ${chunk_idx}
+
+logger:
+  mlflow:
+    run_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}_Ensemble-${hydra:job.num}
+    tags:
+      ensemble: True
+
+# The EnsembleModel class handles transformation of data for each model individually, the data in eval/predict is
+# therefore non-transformed (i.e. in the original data space).
+eval:
+  inverse_transform_data: False
+
+predict:
+  inverse_transform_data: False
+

@@ -1,0 +1,35 @@
+# @package _global_
+
+defaults:
+  - base_torch
+
+model:
+  _target_: darts.models.forecasting.tcn_model.TCNModel
+  input_chunk_length: 74
+  kernel_size: 12
+  num_filters: 5
+  dilation_base: 3
+  output_chunk_length: 1
+  weight_norm: True
+  num_layers: null  # will set to get full history coverage
+  loss_fn:
+      _target_: torch.nn.MSELoss
+
+
+# TCN does not accept future_covariates. Therefore, convert the future_covariates to past_covariates.
+datamodule:
+  data_variables:
+    future_covariates: null
+    past_covariates:
+      - 'date'
+      - 'day'
+      - 'period'
+      - 'nswdemand'
+      - 'vicprice'
+      - 'vicdemand'
+      - 'transfer'
+
+
+
+
+

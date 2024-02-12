@@ -1,0 +1,19 @@
+defaults:
+  - base_torch
+
+_target_: darts.models.forecasting.rnn_model.RNNModel
+input_chunk_length: 18
+output_chunk_length: 1
+optimizer_cls:
+  _target_: torch.optim.Adam
+  _partial_: true
+optimizer_kwargs:
+  lr: 0.001
+model: LSTM
+hidden_dim: 25
+training_length: ${eval:'${eval.kwargs.forecast_horizon} + ${model.input_chunk_length}'}
+n_rnn_layers: 1
+
+
+
+

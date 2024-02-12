@@ -1,0 +1,15 @@
+defaults:
+  - base_data
+
+_target_: src.datamodules.components.timeseries_datamodule.TimeSeriesDataModule
+data_source:
+  relative_file_path: "air_passengers.csv"
+  file_format: "csv"
+  header_time: "Month"
+  format_time: "%Y-%m"
+data_variables:
+  target:
+    - "#Passengers"
+
+
+

@@ -1,0 +1,58 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+run-tests-job:
+  stage: test
+  image: python:3.9
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_BRANCH == "public"'
+  before_script:
+    - python -V               # Print out python version for debugging
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - pip install sh
+  script:
+    - pytest -v
+
+deploy-to-github:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "public"'
+  before_script:
+    - 'command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+
+    ##
+    ## Give the right permissions, otherwise ssh-add will refuse to add files
+    ## Add the SSH key stored in SSH_PRIVATE_KEY file type CI/CD variable to the agent store
+    ##
+    - chmod 400 "$GITHUB_DEPLOY_PRIVATE_KEY"
+    - ssh-add "$GITHUB_DEPLOY_PRIVATE_KEY"
+
+    ##
+    ## Create the SSH directory and give it the right permissions
+    ##
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+
+    ## Ensure SSH can properly verify host key
+
+    - cp "$SSH_GITHUB_KNOWN_HOSTS" ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - cat ~/.ssh/known_hosts
+
+    - git config --global user.email "$GITHUB_USER_EMAIL"
+    - git config --global user.name "$GITHUB_USER_NAME"
+  script:
+    - git remote add github "$GITHUB_REPO_URL"
+    - git push github HEAD:main --force

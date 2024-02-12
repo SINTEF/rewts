@@ -1,0 +1,39 @@
+# @package _global_
+
+defaults:
+  - eval: backtest.yaml
+  - paths: default.yaml
+  - hydra: default.yaml
+  # optional local config for machine/user specific settings
+  # it's optional since it doesn't need to exist and is excluded from version control
+  - _self_
+  - optional local: default.yaml
+  - experiment: null
+
+# passing model_dir is necessary for evaluation. Configuration and model is loaded from this directory.
+# model_dir is either a path relative to content root (e.g. logs/train/runs/YYYY-MM-DD_HH-MM-SS) or a full absolute path
+model_dir: ???
+# if the model is a pytorch model, one can provide the name of the checkpoint to load weights from.
+# the special value "best" will look for a checkpoint matching the default pattern for best checkpoints (epoch_xxx.ckpt)
+ckpt: "best"
+
+task_name: "eval"
+tags: ["dev"]
+
+extras:
+  # disable output about accelerators and warnings about dataloaders
+  disable_pytorch_lightning_output: True
+
+# The config loaded from the log folder can be overridden by the supplying new configuration, e.g.:
+#datamodule:
+#  train_val_test_split:
+#    train: null
+#    val: null
+#    test: 1.0
+
+ensemble:
+  fit_weights_every: 1
+
+eval:
+  kwargs:
+    start: ${oc.select:ensemble.lookback_data_length,null}

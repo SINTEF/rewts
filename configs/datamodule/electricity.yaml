@@ -1,0 +1,37 @@
+# @package _global_
+
+defaults:
+  - base_data@datamodule
+
+datamodule:
+  _target_: src.datamodules.electricity_datamodule.ElectricityDatamodule
+  chunk_length: 1344
+  dataset_length: 45312
+  check_for_nan: False
+  data_variables:
+    target:
+      - "nswprice"
+    future_covariates:
+      - 'date'
+      - 'day'
+      - 'period'
+      - 'nswdemand'
+      - 'vicprice'
+      - 'vicdemand'
+      - 'transfer'
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      #- _target_: darts.dataprocessing.transformers.Scaler
+      #  scaler:
+      #    _target_: sklearn.preprocessing.MinMaxScaler
+      - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
+        fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
+  train_val_test_split:
+    train: 0.5
+    val: 0.25
+    test: 0.25
+
+eval:
+  kwargs:
+    start_format: "position"

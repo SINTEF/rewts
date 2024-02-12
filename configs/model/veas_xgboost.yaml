@@ -1,0 +1,13 @@
+defaults:
+  - base_nontorch
+
+_target_: darts.models.forecasting.xgboost.XGBModel
+lags: 18
+output_chunk_length: 1
+lags_future_covariates:
+    _target_: builtins.tuple
+    _args_:
+      - - ${model.lags}
+        - ${model.output_chunk_length}
+early_stopping_rounds: 10
+n_estimators: 100  # maximum number of trees / boosting rounds

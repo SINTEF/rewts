@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - /logger: mlflow.yaml
+
+model:
+  _target_: ???
+
+trainer: null
+

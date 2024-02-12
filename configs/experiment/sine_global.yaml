@@ -1,0 +1,53 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: sine.yaml
+  - override /model: rnn.yaml
+  - override /eval: backtest.yaml
+  - _self_
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["global", "lstm"]
+
+seed: 12345
+
+datamodule:
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+  split_per_segment: True # will separate each chunk into a training and validation series
+
+
+model:
+  hidden_dim: 32          # gives ~4k learnable parameters (~8x each ensemble model)
+  input_chunk_length: 80  # datapoints used to warm up the lstm before making predictions, contains at least 1 sine period
+  training_length: 110    # number of iterations through the lstm cell during training: input_chunk_length + 30 step predictions
+  batch_size: 32
+
+trainer:
+  max_epochs: 1000
+
+callbacks:
+  early_stopping:
+    patience: 10
+    min_delta: 0.01
+
+logger:
+  mlflow:
+    experiment_name: "sine"
+    tags:
+      ensemble: False
+
+eval:
+  inverse_transform_data:
+    partial_ok: True
+
+predict:
+  inverse_transform_data:
+    partial_ok: True
+

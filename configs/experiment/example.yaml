@@ -1,0 +1,35 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: example_airpassengers.yaml
+  - override /model: xgboost.yaml
+  - _self_
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["airpassengers", "xgboost", "diff_stationary"]
+
+seed: 12345
+
+model:
+  lags: 12
+
+datamodule:
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+    test: null
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Diff
+        lags: 1
+      - _target_: darts.dataprocessing.transformers.Scaler
+        scaler:
+          _target_: sklearn.preprocessing.StandardScaler
+      - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
+        fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
