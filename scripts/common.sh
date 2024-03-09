@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source $SCRIPT_DIR/vars.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR"/vars.sh
 
 function run_with_conda() {
     COMMAND="$1"
@@ -10,7 +11,7 @@ function run_with_conda() {
         # Check if the CONDA_ENV exists
         if conda info --envs | grep -qE "^[[:space:]]*${CONDA_ENV}[[:space:]]+"; then
             echo "Running with conda environment: $CONDA_ENV"
-            conda run --live-stream -n $CONDA_ENV $COMMAND
+            conda run --live-stream -n "$CONDA_ENV" "$COMMAND"
         else
             echo "Error: CONDA_ENV $CONDA_ENV does not exist."
             exit 1
@@ -29,6 +30,5 @@ function send_slack_notification() {
         return 1
     fi
 
-    curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"${message}\"}" $WEBHOOK_URL
+    curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"${message}\"}" "$WEBHOOK_URL"
 }
-

@@ -1,7 +1,4 @@
-# @package _global_
-
 defaults:
   - base_nontorch
 
-model:
-  _target_: darts.models.forecasting.tbats_model.BATS
+_target_: darts.models.forecasting.tbats_model.BATS

@@ -1,33 +1,36 @@
 import copy
+import itertools
+import os
 from pathlib import Path
 
+import darts.dataprocessing
+import darts.datasets
 import hydra.utils
+import numpy as np
+import pandas as pd
 import pytest
 import sklearn.preprocessing
 import torch
-import itertools
-import pandas as pd
-import numpy as np
-import darts.dataprocessing
-import os
-import darts.datasets
 
 import src.datamodules.components
-
+import src.utils
 
 # TODO: test illegal splits
 # TODO: hvorfor ikke bare en sekvens av datamoduler?
-    # * hvordan velger man da processing pipeline? Kanskje fitte en pipeline ved å ta alle datasettene?
-    # * hvordan blir det med plotting av dataset?
-    # * hvordan skal det rent praktisk implementeres? Wrapper rundt liste med dm's?
+# * hvordan velger man da processing pipeline? Kanskje fitte en pipeline ved å ta alle datasettene?
+# * hvordan blir det med plotting av dataset?
+# * hvordan skal det rent praktisk implementeres? Wrapper rundt liste med dm's?
 
 
-_SCALER_PIPELINE_CONFIG = dict(_target_="darts.dataprocessing.Pipeline",
-          transformers=[
-              dict(_target_="darts.dataprocessing.transformers.Scaler",
-                   scaler=dict(_target_="sklearn.preprocessing.StandardScaler"))
-            ]
-    )
+_SCALER_PIPELINE_CONFIG = dict(
+    _target_="darts.dataprocessing.Pipeline",
+    transformers=[
+        dict(
+            _target_="darts.dataprocessing.transformers.Scaler",
+            scaler=dict(_target_="sklearn.preprocessing.StandardScaler"),
+        )
+    ],
+)
 
 
 @pytest.mark.parametrize("lags", [[4], [4, 1], 4])
@@ -39,14 +42,24 @@ def test_pipeline_inverse_diff(get_darts_example_dm, lags):
     else:
         sum_lags = lags
 
-    dm.hparams.processing_pipeline = darts.dataprocessing.Pipeline([darts.dataprocessing.transformers.Diff(lags=lags),
-                                                                    darts.dataprocessing.transformers.Scaler(scaler=sklearn.preprocessing.StandardScaler())])
+    dm.hparams.processing_pipeline = darts.dataprocessing.Pipeline(
+        [
+            darts.dataprocessing.transformers.Diff(lags=lags),
+            darts.dataprocessing.transformers.Scaler(
+                scaler=sklearn.preprocessing.StandardScaler()
+            ),
+        ]
+    )
     dm.setup("fit")
 
-    assert np.allclose(dm.data.values(), dm.inverse_transform_data(dm.transform_data(dm.data)).values())
+    assert np.allclose(
+        dm.data.values(), dm.inverse_transform_data(dm.transform_data(dm.data)).values()
+    )
     for split in ["train", "val", "test"]:
         split_data_transformed = dm.get_data(["target"], main_split=split)["target"]
-        original_split_data = dm.data.slice_n_points_before(split_data_transformed.end_time(), len(split_data_transformed) + sum_lags)
+        original_split_data = dm.data.slice_n_points_before(
+            split_data_transformed.end_time(), len(split_data_transformed) + sum_lags
+        )
         split_data_inversed = dm.inverse_transform_data(split_data_transformed, partial=True)
         assert np.allclose(original_split_data.values(), split_data_inversed.values())
 
@@ -62,10 +75,15 @@ def test_pipeline_subset(get_darts_example_dm, pipeline_config):
     assert getattr(dm.hparams.processing_pipeline, "_fit_called", False)
     original_train_data = dm.data.slice_intersect(data_train)
     pipeline = hydra.utils.instantiate(pipeline_config)
-    transformed_train_data = dm.transform_data(original_train_data, fit_pipeline=True, pipeline=pipeline)
+    transformed_train_data = dm.transform_data(
+        original_train_data, fit_pipeline=True, pipeline=pipeline
+    )
     transformed_train_data_subset = transformed_train_data.univariate_component(2)
 
-    assert np.allclose(original_train_data.univariate_component(2).values(), dm.inverse_transform_data(transformed_train_data_subset).values())
+    assert np.allclose(
+        original_train_data.univariate_component(2).values(),
+        dm.inverse_transform_data(transformed_train_data_subset).values(),
+    )
 
 
 @pytest.mark.parametrize("dataset_name", ["example_ettm1", "example_aus_beer"])
@@ -78,7 +96,10 @@ def test_pipeline(get_darts_example_dm, pipeline_config):
     data_train = dm.get_data(["target"], main_split="train")["target"]
     data_val = dm.get_data(["target"], main_split="val")["target"]
     if pipeline_config is None:
-        assert dm.data.slice_intersect(data_train).univariate_component(data_train.components[0]) == data_train
+        assert (
+            dm.data.slice_intersect(data_train).univariate_component(data_train.components[0])
+            == data_train
+        )
     else:
         assert getattr(dm.hparams.processing_pipeline, "_fit_called", False)
         original_train_data = dm.data.slice_intersect(data_train)
@@ -86,22 +107,104 @@ def test_pipeline(get_darts_example_dm, pipeline_config):
         assert not original_train_data == data_train
 
         pipeline = hydra.utils.instantiate(pipeline_config)
-        transformed_train_data = dm.transform_data(original_train_data, fit_pipeline=True, pipeline=pipeline)
+        transformed_train_data = dm.transform_data(
+            original_train_data, fit_pipeline=True, pipeline=pipeline
+        )
         assert getattr(pipeline, "_fit_called", False)
         assert transformed_train_data.univariate_component(data_train.components[0]) == data_train
         transformed_val_data = dm.transform_data(original_val_data, pipeline=pipeline)
-        assert transformed_val_data.univariate_component(data_val.components[0]) == data_val, "Pipeline was not fitted on just training data"
+        assert (
+            transformed_val_data.univariate_component(data_val.components[0]) == data_val
+        ), "Pipeline was not fitted on just training data"
 
-        assert np.allclose(dm.data.values(), dm.inverse_transform_data(dm.transform_data(dm.data)).values(), atol=1e-6)
+        assert np.allclose(
+            dm.data.values(),
+            dm.inverse_transform_data(dm.transform_data(dm.data)).values(),
+            atol=1e-6,
+        )
 
 
-@pytest.mark.parametrize("crop_data_range", [["1980-01-01", "2000-01-01"], ["1980-01-01", "2050-01-01"]])
+@pytest.mark.parametrize("dataset_name", ["example_ettm1"])
+@pytest.mark.parametrize("pipeline_config", [_SCALER_PIPELINE_CONFIG, None])
+def test_inverse_transform_data_func(get_darts_example_dm, pipeline_config):
+    """Integration tests of helper functions for creating inverse transformation function from
+    datamodule and inverting different data structures."""
+    dm = get_darts_example_dm
+    dm.hparams.processing_pipeline = hydra.utils.instantiate(pipeline_config)
+    dm.setup("fit")
+
+    assert src.utils.get_inverse_transform_data_func(None, dm, "train") is None
+
+    # TODO: test invalid inverse_transform function that raises exception
+
+    inverse_transform_data_func = src.utils.get_inverse_transform_data_func(
+        {"partial_ok": True}, dm, "train"
+    )
+    assert inverse_transform_data_func is not None
+    assert callable(inverse_transform_data_func)
+
+    all_transformed = dm.get_data(
+        ["target", "past_covariates", "future_covariates"], main_split="train"
+    )
+
+    target_inverse_transformed = {}
+    for data_type, data in all_transformed.items():
+        if data is None:
+            target_inverse_transformed[data_type] = None
+        else:
+            target_inverse_transformed[data_type] = dm.inverse_transform_data(data)
+
+    for structure in ["timeseries", "sequence", "dict"]:
+        transformed = copy.deepcopy(all_transformed)
+        if structure == "timeseries":
+            transformed = transformed["target"]
+        elif structure == "sequence":
+            transformed = [transformed["target"], transformed["target"]]
+        elif structure == "dict":
+            pass
+        else:
+            raise ValueError
+
+        inverse_transformed = src.utils.inverse_transform_data(
+            inverse_transform_data_func, transformed
+        )
+        if pipeline_config is None:
+            if structure == "timeseries":
+                original_data = dm.data.slice_intersect(inverse_transformed)
+                original_data = original_data.drop_columns(
+                    [
+                        c
+                        for c in original_data.components
+                        if c not in inverse_transformed.components
+                    ]
+                )
+                assert original_data == inverse_transformed
+            else:
+                continue
+        else:
+            if structure == "timeseries":
+                assert inverse_transformed == target_inverse_transformed["target"]
+            elif structure == "sequence":
+                assert all(
+                    inv_trans_ts == target_inverse_transformed["target"]
+                    for inv_trans_ts in inverse_transformed
+                )
+            elif structure == "dict":
+                for data_type, data in target_inverse_transformed.items():
+                    assert inverse_transformed[data_type] == data
+
+
+@pytest.mark.parametrize(
+    "crop_data_range", [["1980-01-01", "2000-01-01"], ["1980-01-01", "2050-01-01"]]
+)
 def test_crop_data_range(get_darts_example_dm, crop_data_range):
     dm = get_darts_example_dm
     dm.hparams.crop_data_range = crop_data_range
     dm.setup("fit")
 
-    assert dm.data.start_time() >= pd.Timestamp(crop_data_range[0]) and dm.data.end_time() <= pd.Timestamp(crop_data_range[1])
+    assert dm.data.start_time() >= pd.Timestamp(
+        crop_data_range[0]
+    ) and dm.data.end_time() <= pd.Timestamp(crop_data_range[1])
 
 
 @pytest.mark.parametrize("precision", [64, 32, 16, "invalid"])
@@ -118,7 +221,9 @@ def test_precision(get_darts_example_dm, precision):
         new_precision = 64 if precision != 64 else 32
 
         assert dm.data.dtype == np.dtype(getattr(np, f"float{precision}"))
-        assert dm.set_dataset_precision(dm.data, new_precision).dtype == np.dtype(getattr(np, f"float{new_precision}"))
+        assert dm.set_dataset_precision(dm.data, new_precision).dtype == np.dtype(
+            getattr(np, f"float{new_precision}")
+        )
 
 
 def test_setup_load_dir(tmp_path, get_darts_example_dm):
@@ -141,21 +246,27 @@ def test_setup_load_dir(tmp_path, get_darts_example_dm):
         dm_noload.setup("fit")
 
 
-@pytest.mark.parametrize("split", [ {"train": [[0.05, 0.15], [0.2, 0.3]], "val": [[0.4, 0.5]]},
-                                    {"train": [[0.0, 0.16], [0.16, 0.2]], "test": [0.5, 1.0]},
-                                    {"train": 0.5, "val": 0.25, "test": 0.25},
-                                   {"test": 0.25, "val": 0.25, "train": 0.5},
-                                   {"test": 0.25, "train": 0.5},
-                                   {"train": [0.05, 0.55], "test": [0.65, 0.85]},
-                                   {"train": 100, "test": 50},
-                                   {"val": [5, 50], "train": [50, 150], "test": [155, 158]}
-                                    ])
+@pytest.mark.parametrize(
+    "split",
+    [
+        {"train": [[0.05, 0.15], [0.2, 0.3]], "val": [[0.4, 0.5]]},
+        {"train": [[0.0, 0.16], [0.16, 0.2]], "test": [0.5, 1.0]},
+        {"train": 0.5, "val": 0.25, "test": 0.25},
+        {"test": 0.25, "val": 0.25, "train": 0.5},
+        {"test": 0.25, "train": 0.5},
+        {"train": [0.05, 0.55], "test": [0.65, 0.85]},
+        {"train": 100, "test": 50},
+        {"val": [5, 50], "train": [50, 150], "test": [155, 158]},
+    ],
+)
 def test_split_float_int(get_darts_example_dm, split):
     dm = get_darts_example_dm
     dm.hparams.train_val_test_split = split
     dm.hparams.processing_pipeline = None
     dm.setup("fit")
-    split_data = {split_name: dm.get_data(["target"], main_split=split_name) for split_name in split}
+    split_data = {
+        split_name: dm.get_data(["target"], main_split=split_name) for split_name in split
+    }
     split_order = list(split.keys())
 
     split_sizes = {}
@@ -163,7 +274,7 @@ def test_split_float_int(get_darts_example_dm, split):
         if not isinstance(split_values, list):
             split_sizes[split_name] = split_values
         elif isinstance(split_values[0], list):
-            split_sizes[split_name] = sum([s[1] - s[0] for s in split_values])
+            split_sizes[split_name] = sum(s[1] - s[0] for s in split_values)
         else:
             split_sizes[split_name] = split_values[1] - split_values[0]
 
@@ -208,25 +319,36 @@ def test_split_float_int(get_darts_example_dm, split):
                     ds2 = s2
                 else:
                     ds2 = s2[i2]
-                assert ds1.start_time() not in ds2.time_index and ds1.end_time() not in ds2.time_index
+                assert (
+                    ds1.start_time() not in ds2.time_index and ds1.end_time() not in ds2.time_index
+                )
 
     # assert correct order
     if len(split) > 1:
         for split_i in range(len(split_order) - 1):
-            assert split_data[split_order[split_i]]["target"][-1].start_time() < split_data[split_order[split_i + 1]]["target"][0].start_time()
+            assert (
+                split_data[split_order[split_i]]["target"][-1].start_time()
+                < split_data[split_order[split_i + 1]]["target"][0].start_time()
+            )
 
 
 # TODO: test multiple splits per split
-@pytest.mark.parametrize("split", [{"train": "1990-01-01", "val": "2001-01-01", "test": "2007-01-01"},
-                                   {"train": ["start", "1990-01-01"], "val": ["1990-01-01", "end"]}
-                                   ])
+@pytest.mark.parametrize(
+    "split",
+    [
+        {"train": "1990-01-01", "val": "2001-01-01", "test": "2007-01-01"},
+        {"train": ["start", "1990-01-01"], "val": ["1990-01-01", "end"]},
+    ],
+)
 def test_split_timestamp(get_darts_example_dm, split):
     dm = get_darts_example_dm
     dm.hparams.train_val_test_split = split
     dm.hparams.processing_pipeline = None
     dm.setup("fit")
 
-    split_data = {split_name: dm.get_data(["target"], main_split=split_name) for split_name in split}
+    split_data = {
+        split_name: dm.get_data(["target"], main_split=split_name) for split_name in split
+    }
 
     # assert correct start / stop
     for split_name, data in split_data.items():
@@ -239,14 +361,26 @@ def test_split_timestamp(get_darts_example_dm, split):
                 split_end = dm.data.end_time()
             else:
                 split_end = pd.Timestamp(split[split_name][1])
-            assert dm.data.get_index_at_point(data["target"].start_time()) == dm.data.get_index_at_point(split_start)
-            assert dm.data.get_index_at_point(data["target"].end_time()) == dm.data.get_index_at_point(split_end)
+            assert dm.data.get_index_at_point(
+                data["target"].start_time()
+            ) == dm.data.get_index_at_point(split_start)
+            assert dm.data.get_index_at_point(
+                data["target"].end_time()
+            ) == dm.data.get_index_at_point(split_end)
         else:
             # overlap logic can shift one index
-            assert abs(dm.data.get_index_at_point(data["target"].end_time()) - dm.data.get_index_at_point(pd.Timestamp(split[split_name]))) <= 1
+            assert (
+                abs(
+                    dm.data.get_index_at_point(data["target"].end_time())
+                    - dm.data.get_index_at_point(pd.Timestamp(split[split_name]))
+                )
+                <= 1
+            )
 
     # assert not overlapping
-    if len(split_data) > 1 and not isinstance(split["train"], list):  # TODO: make nonoverlapping for list?
+    if len(split_data) > 1 and not isinstance(
+        split["train"], list
+    ):  # TODO: make nonoverlapping for list?
         split_combinations = itertools.combinations(split, 2)
         for comb in split_combinations:
             s1, s2 = split_data[comb[0]]["target"], split_data[comb[1]]["target"]
@@ -263,7 +397,7 @@ def test_get_data(get_darts_example_dm):
         "series": "target",
         "past_covariates": "past_covariates",
         "future_covariates": "future_covariates",  # TODO: static covariates
-        "actual_anomalies": "actual_anomalies"
+        "actual_anomalies": "actual_anomalies",
     }
 
     # TODO: test anomalies?
@@ -274,7 +408,10 @@ def test_get_data(get_darts_example_dm):
         res_data = dm.get_data(requested_data, main_split=split)
         assert len(res_data) == len(requested_data)
         assert all(req_d in res_data for req_d in requested_data)
-        assert all(getattr(dm, f"data_{split}")[data_translator[req_d]][0] == res_data[req_d] for req_d in requested_data)
+        assert all(
+            getattr(dm, f"data_{split}")[data_translator[req_d]][0] == res_data[req_d]
+            for req_d in requested_data
+        )
 
     requested_data.extend(["val_series", "val_past_covariates"])
 
@@ -321,26 +458,47 @@ def test_resample(get_darts_example_dm, resample_method, freq):
 
     if resample_method == "interpolate":
         for i, ts in enumerate(dm.data.time_index):
-            original_index_pre = dm_original.data.time_index.get_indexer([ts], method="ffill").item()
-            original_index_after = dm_original.data.time_index.get_indexer([ts], method="bfill").item()
+            original_index_pre = dm_original.data.time_index.get_indexer(
+                [ts], method="ffill"
+            ).item()
+            original_index_after = dm_original.data.time_index.get_indexer(
+                [ts], method="bfill"
+            ).item()
             if original_index_pre == -1:
                 raise ValueError("How is this possible?")
             elif original_index_after == -1:
                 continue  # Index is after end of original data. Should we remove this datapoint perhaps?
             if original_index_pre != original_index_after:
-                original_values = [dm_original.data[original_index_pre].values(), dm_original.data[original_index_after].values()]
-                index_time_delta = dm_original.data.time_index[original_index_after] - dm_original.data.time_index[original_index_pre]
-                interpolation_point = 1 - (dm_original.data.time_index[original_index_after] - ts) / index_time_delta
-                assert np.isclose(dm.data[ts].values(), original_values[0] * (1 - interpolation_point) + original_values[1] * interpolation_point)
+                original_values = [
+                    dm_original.data[original_index_pre].values(),
+                    dm_original.data[original_index_after].values(),
+                ]
+                index_time_delta = (
+                    dm_original.data.time_index[original_index_after]
+                    - dm_original.data.time_index[original_index_pre]
+                )
+                interpolation_point = (
+                    1 - (dm_original.data.time_index[original_index_after] - ts) / index_time_delta
+                )
+                assert np.isclose(
+                    dm.data[ts].values(),
+                    original_values[0] * (1 - interpolation_point)
+                    + original_values[1] * interpolation_point,
+                )
             elif dm_original.data.time_index[original_index_after] == ts:
                 assert dm_original.data[ts] == dm.data[ts]
             else:
                 print("how")
     else:
         # TODO: this one depends on the type of aggregation...
-        #assert np.isclose(dm.data.values().mean(), dm_original.data.values().mean(), rtol=1e-3)
+        # assert np.isclose(dm.data.values().mean(), dm_original.data.values().mean(), rtol=1e-3)
         # TODO: maybe test more robustly, i.e. as for interpolate. Loop through etc.
-        assert np.all(np.isclose(dm.data.values(), getattr(dm_original.data.pd_dataframe().resample(freq), resample_method)().values))
+        assert np.all(
+            np.isclose(
+                dm.data.values(),
+                getattr(dm_original.data.pd_dataframe().resample(freq), resample_method)().values,
+            )
+        )
 
 
 def test_non_unique_data_variables(get_darts_example_dm):
@@ -356,7 +514,9 @@ def test_data_source(get_darts_example_dm):
     dm = get_darts_example_dm
     assert "data_source" in dm.hparams
     assert dm.__class__ is src.datamodules.TimeSeriesDataModule
-    if not os.path.exists(os.path.join(dm.hparams.data_dir, dm.hparams.data_source["relative_file_path"])):
+    if not os.path.exists(
+        os.path.join(dm.hparams.data_dir, dm.hparams.data_source["relative_file_path"])
+    ):
         if not dm.hparams.data_source["relative_file_path"] == "air_passengers.csv":
             return
         darts_dataset = darts.datasets.AirPassengersDataset()
@@ -364,10 +524,15 @@ def test_data_source(get_darts_example_dm):
         darts_dataset._download_dataset()
     dm.setup("fit")
     assert isinstance(dm.data_train, dict)
-    assert isinstance(dm.data_train["target"][0], darts.timeseries.TimeSeries) and len(dm.data_train) > 0
+    assert (
+        isinstance(dm.data_train["target"][0], darts.timeseries.TimeSeries)
+        and len(dm.data_train) > 0
+    )
 
 
-@pytest.mark.parametrize("dataset_name", ["example_basic_dataset", "example_ettm1_multiple-series"])
+@pytest.mark.parametrize(
+    "dataset_name", ["example_basic_dataset", "example_ettm1_multiple-series"]
+)
 def test_plot_data(get_darts_example_dm):
     dm = get_darts_example_dm
     dm.setup("fit")
@@ -375,7 +540,3 @@ def test_plot_data(get_darts_example_dm):
     dm.plot_data()
     for split in ["train", "val", "test"]:
         dm.plot_data(split=split)
-
-
-
-

@@ -13,7 +13,3 @@ model: LSTM
 hidden_dim: 12
 training_length: ${eval:'${eval.kwargs.forecast_horizon} + ${model.input_chunk_length}'}
 n_rnn_layers: 1
-
-
-
-

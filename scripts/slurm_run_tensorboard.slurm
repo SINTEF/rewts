@@ -6,6 +6,6 @@
 #SBATCH --mem-per-cpu=2GB
 #SBATCH --time 01-00:00:00
 
-cd logs/train
+cd logs/train || { echo "Failed to change directory."; exit 1; }
 
 tensorboard --port=6006 --logdir_spec=.

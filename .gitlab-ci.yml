@@ -11,11 +11,11 @@ cache:
 
 run-tests-job:
   stage: test
-  image: python:3.9
+  image: python:3.10
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_BRANCH == "public"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web" || $CI_COMMIT_BRANCH == "public"'
   before_script:
-    - python -V               # Print out python version for debugging
+    - python -V # Print out python version for debugging
     - pip install virtualenv
     - virtualenv venv
     - source venv/bin/activate
@@ -29,7 +29,7 @@ deploy-to-github:
   rules:
     - if: '$CI_COMMIT_BRANCH == "public"'
   before_script:
-    - 'command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )'
+    - "command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )"
     - eval $(ssh-agent -s)
 
     ##
@@ -54,5 +54,6 @@ deploy-to-github:
     - git config --global user.email "$GITHUB_USER_EMAIL"
     - git config --global user.name "$GITHUB_USER_NAME"
   script:
-    - git remote add github "$GITHUB_REPO_URL"
+    ## Check first if github remote exists, if not add it
+    - git remote | grep github || git remote add github "$GITHUB_REPO_URL"
     - git push github HEAD:main --force

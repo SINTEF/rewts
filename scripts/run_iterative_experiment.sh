@@ -1,6 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cd $SCRIPT_DIR/..
+cd "$SCRIPT_DIR"/.. || exit
 
 # usage: all arguments to the script are given to both train.py and eval.py, unless preceded by -train (only for train
 # script) or -eval (only for eval script).
@@ -35,8 +35,8 @@ for arg in "$@"; do
 done
 
 # Convert arrays to strings
-train_args_str="${train_args[@]}"
-eval_args_str="${eval_args[@]}"
+train_args_str="${train_args[*]}"
+eval_args_str="${eval_args[*]}"
 
 echo "Train args: $train_args_str"
 echo "Eval args:  $eval_args_str"
@@ -47,7 +47,7 @@ global_model_dir="logs/train/multiruns/${timestamp}_global"
 
 # Training
 echo "Running python src/train.py -m experiment=ensemble hydra.sweep.dir=$ensemble_model_dir $train_args_str"
-python src/train.py -m experiment=ensemble hydra.sweep.dir=$ensemble_model_dir $train_args_str
+python src/train.py -m experiment=ensemble hydra.sweep.dir="$ensemble_model_dir" "$train_args_str"
 echo "Finished training ensemble models, saved to: $ensemble_model_dir"
 
 # List directories, filter out non-integer names, and find the maximum
@@ -62,10 +62,10 @@ else
 fi
 
 echo "Running python src/train.py -m experiment=global_iterative hydra.sweep.dir=$global_model_dir $train_args_str"
-python src/train.py -m experiment=global_iterative hydra.sweep.dir=$global_model_dir $train_args_str
+python src/train.py -m experiment=global_iterative hydra.sweep.dir="$global_model_dir" "$train_args_str"
 echo "Finished training global models, saved to: $global_model_dir"
 
 
 # Evaluation
 echo "Running python src/eval.py --multirun experiment=chunk_eval_iterative chunk_idx_end=$chunk_idx_end model_type=ensemble,global ensemble_model_dir=$ensemble_model_dir global_model_dir=$global_model_dir $eval_args_str"
-python src/eval.py --multirun experiment=chunk_eval_iterative chunk_idx_end=$chunk_idx_end model_type=ensemble,global ensemble_model_dir=$ensemble_model_dir global_model_dir=$global_model_dir $eval_args_str
+python src/eval.py --multirun experiment=chunk_eval_iterative chunk_idx_end="$chunk_idx_end" model_type=ensemble,global ensemble_model_dir="$ensemble_model_dir" global_model_dir="$global_model_dir $eval_args_str"

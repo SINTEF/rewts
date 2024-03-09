@@ -6,20 +6,19 @@ import pytorch_lightning.loggers.mlflow
 
 root = pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-import hydra
-from typing import List, Optional, Tuple
-from omegaconf import DictConfig, OmegaConf, open_dict
 import math
 import os
 import shutil
+from typing import List, Optional, Tuple
 
-from src import utils
-import src.utils.plotting
-import src.utils.model_io
-from src.datamodules.components import ChunkedTimeSeriesDataModule
+import hydra
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 import src.eval
 import src.train
+import src.utils.plotting
+from src import utils
+from src.datamodules.components import ChunkedTimeSeriesDataModule
 
 log = utils.get_pylogger(__name__)
 
@@ -41,9 +40,13 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     datamodule = hydra.utils.instantiate(cfg.datamodule, _convert_="partial")
     if cfg.model_type == "ensemble":
         assert isinstance(datamodule, ChunkedTimeSeriesDataModule)
-        datamodule.hparams.dataset_length = int(datamodule.hparams.dataset_length * cfg.HOPT_DATA_FRACTION)
+        datamodule.hparams.dataset_length = int(
+            datamodule.hparams.dataset_length * cfg.HOPT_DATA_FRACTION
+        )
         if datamodule.num_chunks is None:
-            log.error("Datamodule property num_chunks is not defined. Ensure that the arguments dataset_length and chunk_length are set.")
+            log.error(
+                "Datamodule property num_chunks is not defined. Ensure that the arguments dataset_length and chunk_length are set."
+            )
             raise ValueError
 
         n_ensemble_models = datamodule.num_chunks
@@ -60,13 +63,18 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
 
                 model_cfg.paths.output_dir = os.path.join(run_base_dir, str(model_i))
                 os.makedirs(model_cfg.paths.output_dir, exist_ok=True)
-                shutil.copytree(os.path.join(run_base_dir, ".hydra"), os.path.join(model_cfg.paths.output_dir, ".hydra"))
-                #OmegaConf.save(cfg, os.path.join(cfg.paths.output_dir, ".hydra", "config.yaml"), resolve=False)
+                shutil.copytree(
+                    os.path.join(run_base_dir, ".hydra"),
+                    os.path.join(model_cfg.paths.output_dir, ".hydra"),
+                )
+                # OmegaConf.save(cfg, os.path.join(cfg.paths.output_dir, ".hydra", "config.yaml"), resolve=False)
             m_dict, _ = src.train.train(model_cfg)
             metric_dict["ensemble_models"].append(m_dict)
 
         # update config.model_dir to point to the newly trained ensemble models
-        eval_model_dir = [os.path.join(run_base_dir, str(model_i)) for model_i in range(n_ensemble_models)]
+        eval_model_dir = [
+            os.path.join(run_base_dir, str(model_i)) for model_i in range(n_ensemble_models)
+        ]
     elif cfg.model_type == "global":
         metric_dict, _ = src.train.train(cfg)
         eval_model_dir = cfg.paths.output_dir
@@ -77,7 +85,7 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
         cfg.datamodule = OmegaConf.merge(cfg.datamodule, cfg.eval_datamodule)
         cfg.model_dir = eval_model_dir
 
-    eval_cfg = src.utils.load_saved_config(cfg.model_dir, cfg)
+    eval_cfg = src.utils.verify_and_load_config(cfg)
     eval_metric_dict, object_dict = src.eval.evaluate(eval_cfg)
     metric_dict.update(eval_metric_dict)
 

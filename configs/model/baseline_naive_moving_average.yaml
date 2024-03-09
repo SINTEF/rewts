@@ -1,8 +1,5 @@
-# @package _global_
-
 defaults:
-  - base_nontorch
+  - base_local
 
-model:
-  _target_: darts.models.forecasting.baselines.NaiveMovingAverage
-  input_chunk_length: 1
+_target_: darts.models.forecasting.baselines.NaiveMovingAverage
+input_chunk_length: 1

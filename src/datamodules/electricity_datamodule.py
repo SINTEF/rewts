@@ -1,9 +1,13 @@
-from typing import Any, Dict, Optional, Tuple, List
-import scipy.io.arff
 import os
-import pandas as pd
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.datamodules.components.chunked_timeseries_datamodule import ChunkedTimeSeriesDataModule
+import pandas as pd
+import scipy.io.arff
+
+from src.datamodules.components.chunked_timeseries_datamodule import (
+    ChunkedTimeSeriesDataModule,
+)
+
 
 # https://www.openml.org/search?type=data&sort=runs&id=151&status=active
 class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
@@ -33,11 +37,14 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
-    def __init__(self,
-                 *args,  # you can add arguments unique to your dataset here that you use in .setup
-                 filename: str = "electricity-normalized.arff",    # e.g. argument for filename of data file.
-                 # any argument listed here is configurable through the yaml config files and the command line.
-                 **kwargs):
+
+    def __init__(
+        self,
+        *args,  # you can add arguments unique to your dataset here that you use in .setup
+        filename: str = "electricity-normalized.arff",  # e.g. argument for filename of data file.
+        # any argument listed here is configurable through the yaml config files and the command line.
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.save_hyperparameters(logger=False)
 
@@ -51,7 +58,8 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
         careful not to execute things like random split twice!
 
         :param stage: The pytorch lightning stage to prepare the dataset for
-        :param load_dir: The folder from which to load state of datamodule (e.g. fitted scalers etc.).
+        :param load_dir: The folder from which to load state of datamodule (e.g. fitted scalers
+            etc.).
         """
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
@@ -59,7 +67,9 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
 
             # YOU MUST SET YOUR DATASET TO THE self.data ATTRIBUTE
             # If your data has a DatetimeIndex, you must localize timezone information (i.e. pd.tz_localize).
-            self.data, meta = scipy.io.arff.loadarff(os.path.join(self.hparams.data_dir, self.hparams.filename))
+            self.data, meta = scipy.io.arff.loadarff(
+                os.path.join(self.hparams.data_dir, self.hparams.filename)
+            )
             self.data = pd.DataFrame(self.data)
             self.data["day"] = pd.to_numeric(self.data["day"]) / 7
 
@@ -75,17 +85,19 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
 
 
 if __name__ == "__main__":
-    import src.utils
     import hydra
-    import os
+
+    import src.utils
 
     # You can run this script to test if your datamodule sets up without errors.
     #   Note that data_variables.target needs to be defined
     # Then check notebooks/data_explorer.ipynb to inspect if data looks as expected.
 
-    cfg = src.utils.initialize_hydra(os.path.join(os.pardir, os.pardir, "configs", "datamodule", "electricity.yaml"),
-                                     overrides_dict=dict(data_dir=os.path.join("..", "..", "data"), chunk_idx=3),
-                                     print_config=False)
+    cfg = src.utils.initialize_hydra(
+        os.path.join(os.pardir, os.pardir, "configs", "datamodule", "electricity.yaml"),
+        overrides_dict=dict(data_dir=os.path.join("..", "..", "data"), chunk_idx=3),
+        print_config=False,
+    )
 
     dm = hydra.utils.instantiate(cfg, _convert_="partial")
     dm.setup("fit")

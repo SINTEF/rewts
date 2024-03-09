@@ -3,7 +3,3 @@ defaults:
 
 _target_: darts.models.forecasting.nbeats.NBEATSModel
 dropout: 0.0
-
-
-
-

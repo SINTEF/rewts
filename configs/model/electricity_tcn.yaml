@@ -11,25 +11,19 @@ model:
   dilation_base: 3
   output_chunk_length: 1
   weight_norm: True
-  num_layers: null  # will set to get full history coverage
+  num_layers: null # will set to get full history coverage
   loss_fn:
-      _target_: torch.nn.MSELoss
-
+    _target_: torch.nn.MSELoss
 
 # TCN does not accept future_covariates. Therefore, convert the future_covariates to past_covariates.
 datamodule:
   data_variables:
     future_covariates: null
     past_covariates:
-      - 'date'
-      - 'day'
-      - 'period'
-      - 'nswdemand'
-      - 'vicprice'
-      - 'vicdemand'
-      - 'transfer'
-
-
-
-
-
+      - "date"
+      - "day"
+      - "period"
+      - "nswdemand"
+      - "vicprice"
+      - "vicdemand"
+      - "transfer"

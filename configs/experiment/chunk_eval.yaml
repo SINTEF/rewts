@@ -23,7 +23,6 @@ eval:
         _partial_: True
       - _target_: darts.metrics.metrics.coefficient_of_variation
         _partial_: True
-  runner: "backtest"
   split: "test"
 
 datamodule:
@@ -45,5 +44,3 @@ extras:
 logger:
   mlflow:
     experiment_name: ???
-
-

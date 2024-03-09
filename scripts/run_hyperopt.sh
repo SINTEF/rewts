@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR"/common.sh
 
-source $SCRIPT_DIR/common.sh
-
-cd $SCRIPT_DIR/..
+cd "$SCRIPT_DIR"/.. || exit
 
 # This script starts hyperopt jobs in parallel, so that new runs can be started without waiting for all parallel slurm
 # jobs to finish first. Note that parallel jobs can also be run by setting the n_jobs argument in the hparams_search
@@ -26,7 +26,7 @@ OVERRIDES=""
 if [ "$#" -ge 3 ]; then
   # Shift the first two arguments to capture all remaining arguments as overrides
   shift 2
-  OVERRIDES="$@"
+  OVERRIDES="${*}"
 fi
 
 # Loop to execute the Python script
@@ -48,4 +48,3 @@ for (( i=1; i<=NJOBS; i++ )); do
   # Sleep for a few seconds before the next iteration to allow the first process to create
   sleep 2
 done
-

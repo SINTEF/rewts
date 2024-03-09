@@ -1,7 +1,4 @@
-# @package _global_
-
 defaults:
   - base_local
 
-model:
-  _target_: darts.models.forecasting.kalman_forecaster.KalmanForecaster
+_target_: darts.models.forecasting.kalman_forecaster.KalmanForecaster

@@ -1,7 +1,4 @@
-# @package _global_
-
 defaults:
-  - base_nontorch
+  - base_local
 
-model:
-  _target_: darts.models.forecasting.baselines.NaiveMean
+_target_: darts.models.forecasting.baselines.NaiveMean

@@ -2,11 +2,11 @@
 ignore_warnings: False
 
 # ask user for tags if none are provided in the config
-enforce_tags: True
+enforce_tags: False
 
 # pretty print config tree at the start of the run using Rich library. Set to null to disable
 print_config:
-  resolve: True  # controls whether interpolations in the config are resolved or not
+  resolve: True # controls whether interpolations in the config are resolved or not
 
 # disable output about accelerators and warnings about dataloaders
 disable_pytorch_lightning_output: True
@@ -16,3 +16,13 @@ torch_num_cpu_threads: null
 
 # change the file format of saved figures
 matplotlib_savefig_format: "png"
+
+enable_eval_resolver: True
+
+# send notifications on the three events begin (job started), end (job successful), fail (job fail)
+# see https://notifiers.readthedocs.io/en/latest/ for how to configure notification endpoints
+notifications:
+  fail:
+    slack:
+      webhook_url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+      message: "Job failed: ${hydra:job.name} - ${hydra:job.id}"

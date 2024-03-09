@@ -36,4 +36,3 @@ eval:
 
 predict:
   inverse_transform_data: False
-

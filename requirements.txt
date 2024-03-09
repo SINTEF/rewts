@@ -1,8 +1,7 @@
 # --------- darts --------- #
 statsforecast==1.4.0 # newer statsforecast version is not compatible with darts
-darts==0.26.0
+darts==0.28.0
 pandas>=1.5.0
-scikit-learn==1.3.2 # darts 0.26.0 requires scikit-learn < 1.4
 
 # --------- hydra --------- #
 hydra-core>=1.3.2
@@ -29,9 +28,9 @@ tensorboard>=2.10.1
 
 # --------- others --------- #
 pyrootutils         # standardizing the project root setup
-pre-commit          # hooks for applying linters on commit
+# pre-commit          # hooks for applying linters on commit
 rich                # beautiful text formatting in terminal
 pytest              # tests
 # sh                # for running bash commands in some tests (linux/macos only)
 notebook            # jupyter notebook
-
+notifiers           # notifications

@@ -10,8 +10,8 @@ defaults:
 # choose metric which will be optimized by Optuna
 # metrics have the naming pattern {data split}_{metric name} where metric name is the name of the function or class implementing the metric.
 # make sure this is the correct name of some metric defined in:
-  # Torch models:     model.loss_fn or model.torch_metrics
-  # Non-torch models: eval.kwargs.metric
+# Torch models:     model.loss_fn or model.torch_metrics
+# Non-torch models: eval.kwargs.metric
 optimized_metric: "val_mse"
 
 # Sets callbacks to monitor same metric as hyperparameter optimization and same higher/lower is better.

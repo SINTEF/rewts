@@ -11,10 +11,10 @@ defaults:
 model_type: "global"
 
 lags_future_covariates:
-    _target_: builtins.tuple
-    _args_:
-      - - ${model.lags}
-        - ${model.output_chunk_length}
+  _target_: builtins.tuple
+  _args_:
+    - - ${model.lags}
+      - ${model.output_chunk_length}
 
 # here we define Optuna hyperparameter search
 # it optimizes for value returned from function with @hydra.main decorator

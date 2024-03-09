@@ -1,0 +1,27 @@
+split: "val" # which dataset split to predict on. One of [train, test, val]
+ensemble_weights:
+  fit: True
+  save: True
+series_index: 0 # index of split series for splits with multiple series.
+plot:
+  kwargs:
+    plot_covariates: False
+    plot_encodings: False
+    plot_past: True # whether history used as input to model is also plotted
+    plot_prediction_point: True # draw a line at the prediction point
+    separate_target: False # draw each target variable in a separate plot
+    plot_weights: True # plot ensemble weight distribution
+presenter: "savefig"
+#inverse_transform_data:  # should be set by the ensemble and global experiment configs. Must be False for ensemble
+#  partial_ok: True
+metric:
+  - _target_: darts.metrics.metrics.mse
+    _partial_: True
+indices:
+  - 0.25
+  - 0.5
+kwargs:
+  n: 5
+  verbose: True # show progress of fitting ensemble weights
+
+retrain: False # whether transferable models should be retrained on prediction data before predicting

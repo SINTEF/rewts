@@ -3,5 +3,3 @@ defaults:
 
 dataset_name: "AusBeer"
 #freq: "3M"   # the sampling frequency of the data as a Timestamp string (quarterly)
-
-

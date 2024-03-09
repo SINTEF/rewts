@@ -7,4 +7,4 @@ prediction_plotter:
   val_plots_per_epoch: 3
   train_plots_per_epoch: null
   data_names: ${datamodule.data_variables}
-  plot_covariates: False
+  plot_covariates: True

@@ -1,8 +1,4 @@
-# @package _global_
-
 defaults:
   - base_local
 
-model:
-  _target_: darts.models.forecasting.sf_auto_ets.StatsForecastAutoETS
-
+_target_: darts.models.forecasting.sf_auto_ets.StatsForecastAutoETS

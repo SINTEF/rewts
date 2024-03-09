@@ -10,6 +10,3 @@ data_source:
 data_variables:
   target:
     - "#Passengers"
-
-
-

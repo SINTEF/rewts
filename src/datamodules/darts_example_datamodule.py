@@ -1,8 +1,10 @@
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import darts.datasets
 
-from src.datamodules.components.chunked_timeseries_datamodule import ChunkedTimeSeriesDataModule
+from src.datamodules.components.chunked_timeseries_datamodule import (
+    ChunkedTimeSeriesDataModule,
+)
 
 
 class DartsExampleDataModule(ChunkedTimeSeriesDataModule):
@@ -32,19 +34,28 @@ class DartsExampleDataModule(ChunkedTimeSeriesDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
-    def __init__(self,
-                 dataset_name: str,
-                 load_as_dataframe: bool = False,  # For debugging purposes to test pd.DataFrame pipeline
-                 **kwargs):
+
+    def __init__(
+        self,
+        dataset_name: str,
+        load_as_dataframe: bool = False,  # For debugging purposes to test pd.DataFrame pipeline
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.dataset = None
         self.save_hyperparameters(logger=False)
         dataset_class = getattr(darts.datasets, f"{self.hparams.dataset_name}Dataset")
-        assert dataset_class is not None, f"Can not find dataset with name {self.hparams.dataset_name}Dataset in darts.datasets"
+        assert (
+            dataset_class is not None
+        ), f"Can not find dataset with name {self.hparams.dataset_name}Dataset in darts.datasets"
         self.dataset = dataset_class()
         self.dataset._root_path = self.hparams.data_dir
 
     def prepare_data(self):
+        """Check that dataset is downloaded.
+
+        :return:
+        """
         if not self.dataset._is_already_downloaded():
             self.dataset.load()
 
@@ -57,7 +68,10 @@ class DartsExampleDataModule(ChunkedTimeSeriesDataModule):
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             self.data = self.dataset.load()
-            if self.hparams.data_variables is None or self.hparams.data_variables.get("target", None) is None:
+            if (
+                self.hparams.data_variables is None
+                or self.hparams.data_variables.get("target", None) is None
+            ):
                 self.hparams.data_variables = {"target": self.data.components.values.tolist()}
             if self.hparams.load_as_dataframe:
                 self.data = self.data.pd_dataframe()

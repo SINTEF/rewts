@@ -1,8 +1,9 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source $SCRIPT_DIR/common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR"/common.sh
 
-cd $SCRIPT_DIR/..
+cd "$SCRIPT_DIR"/.. || { echo "Failed to change directory."; exit 1; }
 
 cp configs/local/slurm.yaml configs/local/default.yaml
 echo "Made SLURM the default launcher: created configs/local/default.yml"

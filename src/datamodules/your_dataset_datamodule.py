@@ -1,6 +1,8 @@
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.datamodules.components.chunked_timeseries_datamodule import ChunkedTimeSeriesDataModule
+from src.datamodules.components.chunked_timeseries_datamodule import (
+    ChunkedTimeSeriesDataModule,
+)
 
 
 class YourDatasetDataModule(ChunkedTimeSeriesDataModule):
@@ -30,15 +32,23 @@ class YourDatasetDataModule(ChunkedTimeSeriesDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
-    def __init__(self,
-                 *args,  # you can add arguments unique to your dataset here that you use in .setup
-                 filename: str = "my_data.csv",    # e.g. argument for filename of data file.
-                 # any argument listed here is configurable through the yaml config files and the command line.
-                 **kwargs):
+
+    def __init__(
+        self,
+        *args,  # you can add arguments unique to your dataset here that you use in .setup
+        filename: str = "my_data.csv",  # e.g. argument for filename of data file.
+        # any argument listed here is configurable through the yaml config files and the command line.
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.save_hyperparameters(logger=False)
 
     def prepare_data(self):
+        """Function ran prior to setup.
+
+        For instance, to check that dataset is available.
+        :return:
+        """
         pass
 
     def setup(self, stage: Optional[str] = None, load_dir: Optional[str] = None):
@@ -48,7 +58,8 @@ class YourDatasetDataModule(ChunkedTimeSeriesDataModule):
         careful not to execute things like random split twice!
 
         :param stage: The pytorch lightning stage to prepare the dataset for
-        :param load_dir: The folder from which to load state of datamodule (e.g. fitted scalers etc.).
+        :param load_dir: The folder from which to load state of datamodule (e.g. fitted scalers
+            etc.).
         """
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
@@ -70,18 +81,24 @@ class YourDatasetDataModule(ChunkedTimeSeriesDataModule):
 
 
 if __name__ == "__main__":
-    import src.utils
-    import hydra
     import os
+
+    import hydra
+
+    import src.utils
 
     # You can run this script to test if your datamodule sets up without errors.
     #   Note that data_variables.target needs to be defined
     # Then check notebooks/data_explorer.ipynb to inspect if data looks as expected.
 
-    cfg = src.utils.initialize_hydra(os.path.join(os.pardir, os.pardir, "configs", "datamodule", "your_dataset.yaml"),
-                                     overrides_dict=dict(data_dir=os.path.join("..", "..", "data"),
-                                                         filename="dataset.csv"),  # path to data
-                                     print_config=False)
+    cfg = src.utils.initialize_hydra(
+        os.path.join(os.pardir, os.pardir, "configs", "datamodule", "your_dataset.yaml"),
+        overrides_dict=dict(
+            data_dir=os.path.join("..", "..", "data"), filename="filename.csv"
+        ),  # path to data. Need to set here as we are not instantiating the full config object, e.g. paths
+        print_config=False,
+    )
 
-    dm = hydra.utils.instantiate(cfg)
+    # convert partial will turn arguments to the datamodule class from DictConfig hydra-objects into dict, same for list
+    dm = hydra.utils.instantiate(cfg, _convert_="partial")
     dm.setup("fit")

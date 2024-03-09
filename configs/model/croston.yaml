@@ -1,7 +1,4 @@
-# @package _global_
-
 defaults:
   - base_local
 
-model:
-  _target_: darts.models.forecasting.croston.Croston
+_target_: darts.models.forecasting.croston.Croston

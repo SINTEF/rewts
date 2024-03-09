@@ -1,6 +1,6 @@
 # Time Series Analytics Software Tutorial
 
-This resource is a step-by-step tutorial to get familiar with the time series analytics software and its various components: [darts](https://unit8co.github.io/darts/index.html), [hydra](https://hydra.cc/), [pytorch-lightning](https://lightning.ai/docs/pytorch/latest/), [tensorboard](https://www.tensorflow.org/tensorboard), [mlflow](https://mlflow.org/docs/latest/tracking.html), etc. 
+This resource is a step-by-step tutorial to get familiar with the time series analytics software and its various components: [darts](https://unit8co.github.io/darts/index.html), [hydra](https://hydra.cc/), [pytorch-lightning](https://lightning.ai/docs/pytorch/latest/), [tensorboard](https://www.tensorflow.org/tensorboard), [mlflow](https://mlflow.org/docs/latest/tracking.html), etc.
 
 ## 0. YAML Syntax
 
@@ -12,7 +12,7 @@ argument_name: argument_value  # in python this corresponds to variable_name = v
 argument_with_None_value: null  # null in yaml corresponds to None in python
 
 # arguments that have no value but indented scope directly following is equivalent to a python dictionary
-dict_name:  
+dict_name:
   key_one: value_one
   key_two: value_two
 
@@ -32,6 +32,7 @@ Finally, all command line calls in this tutorial assume you are in the project r
 ## 1. Data Configuration and Exploration
 
 ### Initial Configuration
+
 <details>
 <summary><b>Note on custom datasets</b></summary>
 To use a custom dataset you must first configure it in a format understood by the time series analytics software. This is described in <a href="README.md">README.md</a> section Getting started - New Datasets
@@ -47,7 +48,7 @@ defaults:
 dataset_name: "AirPassengers"
 ```
 
-The [defaults](https://hydra.cc/docs/1.3/tutorials/structured_config/schema/) section at the top of the config-file tells us that this config inherits the arguments that are set in the files listed in this section. The listed files are merged in the order that they are listed (i.e. for arguments specified in multiple files the value in the last file will be chosen), and the \_self_ keyword refers to this file (which if omitted is automatically inserted at the bottom, i.e. the current file takes precedence by default).
+The [defaults](https://hydra.cc/docs/1.3/tutorials/structured_config/schema/) section at the top of the config-file tells us that this config inherits the arguments that are set in the files listed in this section. The listed files are merged in the order that they are listed (i.e. for arguments specified in multiple files the value in the last file will be chosen), and the \_self\_ keyword refers to this file (which if omitted is automatically inserted at the bottom, i.e. the current file takes precedence by default).
 
 In this case we can see that this config file simply sets the argument dataset_name and inherits everything else from the [configs/datamodule/base_darts_example.yaml](configs/datamodule/base_darts_example.yaml) file:
 
@@ -66,13 +67,16 @@ train_val_test_split:
 ```
 
 This file again inherits from [configs/datamodule/base_data.yaml](configs/datamodule/base_data.yaml). In this way you can reuse configuration that is common across datasets and don't have to rewrite the whole datamodule configuration for every new dataset you use. Further, in this file ([configs/datamodule/base_darts_example.yaml](configs/datamodule/base_darts_example.yaml)) we see two other hydra special arguments:
+
 ```yaml
 _target_: src.datamodules.DartsExampleDataModule
 dataset_name: ???
 ```
-The \_target_ argument specifies a dotpath to a python callable (e.g. a class or a function), and the other arguments in the same scope are considered arguments to that target. The dotpath is used in essentially the same way you would import something in a normal python script. In this case it will find the class [DartsExampleDataModule](src/datamodules/darts_example_datamodule.py) in the script [src/datamodules/darts_example_datamodule.py](src/datamodules/darts_example_datamodule.py) and pass the arguments to its \_\_init__ function when instantiating the datamodule. (note that the \_target_ path points not to the file the script is in but to the directory that the script is in because the directory [src/datamodules](src/datamodules) is a python-package, i.e. it has an \_\_init.py__, and the class can therefore be imported directly from the package in addition to from the script its source code is in.)
 
-The ??? value means that the dataset_name argument is required but it has to be overwritten (i.e. in the source code for the DartsExampleDataModule.\_\_init__ function it is a required argument), either by another config which inherits from it (like we did for [configs/datamodule/example_airpassengers.yaml](configs/datamodule/example_airpassengers.yaml)) or from the commandline when executing the program, e.g.
+The \_target\_ argument specifies a dotpath to a python callable (e.g. a class or a function), and the other arguments in the same scope are considered arguments to that target. The dotpath is used in essentially the same way you would import something in a normal python script. In this case it will find the class [DartsExampleDataModule](src/datamodules/darts_example_datamodule.py) in the script [src/datamodules/darts_example_datamodule.py](src/datamodules/darts_example_datamodule.py) and pass the arguments to its \_\_init\_\_ function when instantiating the datamodule. (note that the \_target\_ path points not to the file the script is in but to the directory that the script is in because the directory [src/datamodules](src/datamodules) is a python-package, i.e. it has an \_\_init.py\_\_, and the class can therefore be imported directly from the package in addition to from the script its source code is in.)
+
+The ??? value means that the dataset_name argument is required but it has to be overwritten (i.e. in the source code for the DartsExampleDataModule.\_\_init\_\_ function it is a required argument), either by another config which inherits from it (like we did for [configs/datamodule/example_airpassengers.yaml](configs/datamodule/example_airpassengers.yaml)) or from the commandline when executing the program, e.g.
+
 ```bash
 python src/train.py datamodule=base_darts_example datamodule.dataset_name="AirPassengers"
 ```
@@ -82,6 +86,7 @@ is equivalent to defining the [configs/datamodule/example_airpassengers.yaml](co
 Now we have configured the AirPassengers dataset and are ready to proceed with some data exploration!
 
 ### Data Exploration
+
 Whenever you are analyzing a new dataset, you typically want to start with exploring the data. The [notebooks/data_explorer.ipynb](notebooks/data_explorer.ipynb) notebook is made specifically for this purpose. It loads your data configuration and provides various methods for visualizing your data and key properties of your data such as correlations and distributions. Go through the notebook and explore the AirPassengers dataset. Ensure that the notebook is configured to load the AirPassengers dataset, i.e. the first cell under configuration looks like:
 
 ```python
@@ -95,13 +100,12 @@ cfg = src.utils.initialize_hydra(config_path, config_overrides_dot, config_overr
 show_encoders = False
 ```
 
-
 Note for instance that data is sampled monthly and has yearly seasonal trends, thus the functions under the Seasonality header tells us that the data is seasonal with a period of 12.
-
 
 Now we can start to have some fun and customize the dataset to our liking. Try the suggestions below and then rerun [notebooks/data_explorer.ipynb](notebooks/data_explorer.ipynb) to see the effects (the notebook uses autoreload to catch changes in external files, so you only have to rerun the cells below the "Configuration" header). It is good practice to perform the changes in the [configs/datamodule/example_airpassengers.yaml](configs/datamodule/example_airpassengers.yaml) file to avoid changing the configuration of other datasets that also inherit from the base configuration files.
 
 #### Dataset splits
+
 First, in the [configs/datamodule/base_data.yaml](configs/datamodule/base_data.yaml) configuration file we have configured that we want three dataset splits containing 50%, 25%, 25% of the total data, respectively. Try changing the dataset splits by adding the following to [configs/datamodule/example_airpassengers.yaml](configs/datamodule/example_airpassengers.yaml) in order to use only two splits with 50% and 25% (i.e. leaving out the last 25%):
 
 ```yaml
@@ -115,8 +119,9 @@ train_val_test_split:
   val: 0.25
   test: null
 ```
- Note that since we inherit from [configs/datamodule/base_data.yaml](configs/datamodule/base_data.yaml) who also has defined the argument train_val_test_split.test we have to provide a value for train_val_test_split.test, otherwise we would inherit the train_val_test_split.test = 0.25 value. We can also try to leave out the first 25%:
- 
+
+Note that since we inherit from [configs/datamodule/base_data.yaml](configs/datamodule/base_data.yaml) who also has defined the argument train_val_test_split.test we have to provide a value for train_val_test_split.test, otherwise we would inherit the train_val_test_split.test = 0.25 value. We can also try to leave out the first 25%:
+
 ```yaml
 defaults:
   - base_darts_example
@@ -128,8 +133,9 @@ train_val_test_split:
   val: [0.75, 1.0]
   test: null
 ```
- You can try to set the number of datapoints in each split in absolute numbers, e.g. 50 datapoints for training and 10 datapoints for validation:
- 
+
+You can try to set the number of datapoints in each split in absolute numbers, e.g. 50 datapoints for training and 10 datapoints for validation:
+
 ```yaml
 defaults:
   - base_darts_example
@@ -209,6 +215,7 @@ processing_pipeline:
 ```
 
 Another useful transformer is the family of power transformations, e.g. do a log transformation using a [Box-Cox transformer](https://unit8co.github.io/darts/generated_api/darts.dataprocessing.transformers.boxcox.html):
+
 ```yaml
 defaults:
   - base_darts_example
@@ -229,6 +236,7 @@ processing_pipeline:
 ```
 
 #### Resampling
+
 The AirPassengers dataset contains monthly data. If we instead want to analyse the data on a yearly-basis we can leverage the resampling functionality of the TimeSeriesDataModule:
 
 ```yaml
@@ -267,13 +275,13 @@ data_variables:
   static_covariates: null
 ```
 
-Thus, one must at least specify which variables are target variables. These should be the names of columns in your pandas DataFrame. For [darts datasets](https://unit8co.github.io/darts/generated_api/darts.datasets.html) that use the [DartsExampleDataModule](src/datamodules/darts_example_datamodule.py) class there is a trick that simply chooses all variables in the dataset as target variables. This is why we didnt have to specify our variables for the [AirPassengers](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) dataset.
+Thus, one must at least specify which variables are target variables. These should be the names of columns in your pandas DataFrame. For [darts datasets](https://unit8co.github.io/darts/generated_api/darts.datasets.html) that use the [DartsExampleDataModule](src/datamodules/darts_example_datamodule.py) class there is a trick that simply chooses all variables in the dataset as target variables. This is why we didn't have to specify our variables for the [AirPassengers](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) dataset.
 
 The [AirPassengers](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) dataset only has one variable: "#Passengers" representing the number of passengers, there are no covariates available in the source data. Instead, to illustrate the concept of covariates we can leverage dart's functionality for automatically generating time-based covariates through its [encoders](https://unit8co.github.io/darts/generated_api/darts.dataprocessing.encoders.encoders.html).
 
 #### Encoders
 
-Darts provides a number of [time-based past/future covariates](https://unit8co.github.io/darts/generated_api/darts.dataprocessing.encoders.encoders.html) which are generated by encoding the index of a dataset. For instance, you can generate covariates that indicate to the model the hour of the day, day of week, month of year, special holidays etc., see [here](https://unit8co.github.io/darts/quickstart/00-quickstart.html#Encoders:-using-covariates-for-free) for more examples. To use these encoders, the models have an argument add_encoders. 
+Darts provides a number of [time-based past/future covariates](https://unit8co.github.io/darts/generated_api/darts.dataprocessing.encoders.encoders.html) which are generated by encoding the index of a dataset. For instance, you can generate covariates that indicate to the model the hour of the day, day of week, month of year, special holidays etc., see [here](https://unit8co.github.io/darts/quickstart/00-quickstart.html#Encoders:-using-covariates-for-free) for more examples. To use these encoders, the models have an argument add_encoders.
 
 For the [AirPassengers](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) dataset knowing the month of the year is important to learn the seasonal component of the data, and knowing what the year is important to learn the strength of the seasonality (as the oscillations increase in amplitude with year). Thus, to give these features to our model (lets use the [XGBoost model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.xgboost.html) as an example), we could modify its configuration file [configs/model/xgboost.yaml](configs/model/xgboost.yaml) by adding the following:
 
@@ -334,7 +342,7 @@ processing_pipeline:
       fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
 ```
 
-The [src/train.py](src/train.py) script handles everything related to training of models. This script uses the corresponding [configs/train.yaml](configs/train.yaml) file for configuration, which inherits from all the other configuration groups in order to construct one final configuration file that completely describes the state of the model and data used during the training run. 
+The [src/train.py](src/train.py) script handles everything related to training of models. This script uses the corresponding [configs/train.yaml](configs/train.yaml) file for configuration, which inherits from all the other configuration groups in order to construct one final configuration file that completely describes the state of the model and data used during the training run.
 
 <details>
 <summary><b>Hydra configuration explanations</b></summary>
@@ -358,6 +366,7 @@ fit:
 In the final train.yaml config object (the cfg variable in the [src/train.py](src/train.py) script), all the arguments for fit are then available under the fit-namespace (cfg.fit).
 
 Further, the defaults list contains a null-value:
+
 ```yaml
 defaults:
   #...
@@ -365,9 +374,11 @@ defaults:
   - debug: null
   #...
 ```
+
 This syntax means that the debug namespace will have a None-value (cfg.debug = None), and importantly enables the debug config to be controlled through the command-line as described in the comment.
 
 The final piece of new syntax is the optional keyword:
+
 ```yaml
 defaults:
   # ...
@@ -375,6 +386,7 @@ defaults:
   # it's optional since it doesn't need to exist and is excluded from version control
   - optional local: default.yaml
 ```
+
 Hydra will then look for a file called default.yaml in [configs/local](configs/local) but will not throw an error if the file is not found.
 
 Finally, notice that the default model is set to [tcn.yaml](configs/model/tcn.yaml) which configures a [temporal convolutional neural network pytorch-model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tcn_model.html). This config file inherits from [configs/model/base_torch.yaml](configs/model/base_torch.yaml) which again configures arguments that are shared among the pytorch models. Here we encounter yet some more new hydra-syntax. The line at the top of the file signifies that even if this file is inherited from using a namespace as above (for fit etc.), the contents will be placed in the global (i.e. outermost) scope:
@@ -402,7 +414,7 @@ python src/train.py
 
 ### Run directory
 
-When we start a training run hydra will create a run directory and collect all files belonging to that run and save them in the run directory. The run directory is located at logs/<task_name>/<run_type>/<DATE_TIME> (configured by the argument hydra.run.dir in [configs/hydra/default.yaml](configs/hydra/default.yaml)) where <task_name> is "train" in this case (configured by the argument task_name in [configs/train.yaml](configs/train.yaml)) or ["debug" if we use a debug config](#debug), <run_type> is either "runs" or ["multiruns"](#command-line-overrides) (see [Hydra sweeps](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/) below), and the run name is set as the current date and time. The contents of the run directory is as follows:
+When we start a training run hydra will create a run directory and collect all files belonging to that run and save them in the run directory. The run directory is located at logs/\<task_name>/\<run_type>/\<DATE_TIME> (configured by the argument hydra.run.dir in [configs/hydra/default.yaml](configs/hydra/default.yaml)) where \<task_name> is "train" in this case (configured by the argument task_name in [configs/train.yaml](configs/train.yaml)) or ["debug" if we use a debug config](#debug), \<run_type> is either "runs" or ["multiruns"](#command-line-overrides) (see [Hydra sweeps](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/) below), and the run name is set as the current date and time. The contents of the run directory is as follows:
 
 ```
 ├── .hydra                       <- Hydra configuration files
@@ -429,7 +441,7 @@ When we start a training run hydra will create a run directory and collect all f
 
 If the arguments validate or test in [configs/train.yaml](configs/train.yaml) are True, the model will after training be evaluated on the validation and/or test set, respectively (if these splits are configured in the datamodule). See the [section on evaluation](#4-evaluating-a-trained-model) for more information.
 
-Go look at the config saved for your model run at .hydra/config.yaml, compare to the original [configs/train.yaml](configs/train.yaml) to get a sense of how the hierarchical config composition method of Hydra works. 
+Go look at the config saved for your model run at .hydra/config.yaml, compare to the original [configs/train.yaml](configs/train.yaml) to get a sense of how the hierarchical config composition method of Hydra works.
 
 ### Loggers
 
@@ -500,13 +512,15 @@ In order to configure the training runs we have a few different options which ea
 ### Command line overrides
 
 Pros
-+ Simple and quick 
-+ Can easily create [sweeps](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/)
-+ Easy to swap out whole config groups, e.g. change which model to use
-+ Changes are isolated to this run, thus avoids impacting other runs by changing the default values
+
+- Simple and quick
+- Can easily create [sweeps](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/)
+- Easy to swap out whole config groups, e.g. change which model to use
+- Changes are isolated to this run, thus avoids impacting other runs by changing the default values
 
 Cons
-- Not as easily repeatable (saved to logs/<task_name>/<run_mode>/<run_name>/.hydra/overrides.yaml)
+
+- Not as easily repeatable (saved to logs/\<task_name>/\<run_mode>/\<run_name>/.hydra/overrides.yaml)
 - Not scalable to many argument overrides
 
 The simplest and quickest option is to override arguments on the command-line, similar to how one would use the python ArgParser. E.g. we can instead train an [LSTM model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.rnn_model.html), set the number of parameters in each layer to 10, and set the maximum number of training epochs to 15:
@@ -515,10 +529,9 @@ The simplest and quickest option is to override arguments on the command-line, s
 python src/train.py model=rnn ++model.hidden_dim=10 trainer.max_epochs=15
 ```
 
-Here, the model.hidden_dim argument has "++" in front. This is because this argument is not present in the model yaml files, so we have to use "+" to signal that we add a new argument, and by using "++" we say add if it does not exist and overwrite the value if it does exist. Further, since model is a namespace, when we write model=rnn hydra will look for a file called rnn.yaml in [configs/model](configs/model), and overwrite all model arguments of the default config [configs/train.yaml](configs/train.yaml) with the arguments in the [rnn.yaml](configs/model/rnn.yaml) file. 
+Here, the model.hidden_dim argument has "++" in front. This is because this argument is not present in the model yaml files, so we have to use "+" to signal that we add a new argument, and by using "++" we say add if it does not exist and overwrite the value if it does exist. Further, since model is a namespace, when we write model=rnn hydra will look for a file called rnn.yaml in [configs/model](configs/model), and overwrite all model arguments of the default config [configs/train.yaml](configs/train.yaml) with the arguments in the [rnn.yaml](configs/model/rnn.yaml) file.
 
 You can verify that the argument overrides were used by inspecting the config printed to the terminal during script execution, by inspecting the model run in tensorboard or mflow, or by looking at the config saved for your model in .hydra/config.yaml as described in the [run directory section](#run-directory).
-
 
 #### Hydra sweeps
 
@@ -539,15 +552,19 @@ python src/train.py -m model=arima model.p=4,6,8 model.d=0,1
 will create 6 different training runs with all combinations of model.p and model.d. In general, you should check the [darts documentation](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.html) for the names of model arguments and what their values mean.
 
 ### Editing the configuration files
+
 Pros
-+ Simple and quick
-+ Shared among all runs, thus reduces overhead of writing configuration
+
+- Simple and quick
+- Shared among all runs, thus reduces overhead of writing configuration
 
 Cons
+
 - Not as easily repeatable if you later change the defaults again
 - Impacts all subsequent runs, thus could cause unintended side effects
 
 The next simplest method is to change the main configuration file, which in the case of training models is the [configs/train.yaml](configs/train.yaml) file. If you will mostly be working with a single type of model, e.g. [an XGBoost model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.xgboost.html), then changing the default model file will save you from having to change it on the command-line every time you train a new model:
+
 ```yaml
 defaults:
   - _self_
@@ -557,6 +574,7 @@ defaults:
 ```
 
 Then we can just run the training script with no arguments to train an [XGBoost model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.xgboost.html):
+
 ```bash
 python src/train.py
 ```
@@ -573,6 +591,7 @@ output_chunk_length: 1
 ```
 
 Now whenever we run the training script we will train an [XGBoost model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.xgboost.html) where the model lags is tailored to our dataset:
+
 ```bash
 python src/train.py
 ```
@@ -581,14 +600,14 @@ python src/train.py
 
 Pros
 
-* Suitable for modifying many arguments at once across namespaces
-* Easily reusable
-* Can be used to save configuration, e.g. the best hyperparameters found
+- Suitable for modifying many arguments at once across namespaces
+- Easily reusable
+- Can be used to save configuration, e.g. the best hyperparameters found
 
 Cons
 
-* Some additional configuration overhead
-* Not as easy to create sweeps
+- Some additional configuration overhead
+- Not as easy to create sweeps
 
 The experiment namespace in [configs/experiment](configs/experiment) is intended as a method to make modifications to many namespaces at once (e.g. changing both datamodule and model configurations) in a reusable manner. Take a look at the [configs/experiment/example.yaml](configs/experiment/example.yaml) file for instance:
 
@@ -660,9 +679,9 @@ Along the same lines there is the [configs/debug/limit.yaml](configs/debug/limit
 python src/train.py debug=limit
 ```
 
-The limit debug config should fail for the configuration we have set up since the [AirPassengers dataset](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) is so small that there is only a single validation batch and we cant limit it further. 
+The limit debug config should fail for the configuration we have set up since the [AirPassengers dataset](https://unit8co.github.io/darts/generated_api/darts.datasets.html#darts.datasets.AirPassengersDataset) is so small that there is only a single validation batch and we can't limit it further.
 
-Finally, there is the [configs/debug/profiler.yaml](configs/debug/profiler.yaml) config which wille enable the [pytorch lightning profiler](https://lightning.ai/docs/pytorch/stable/tuning/profiler.html), which can be used to identify which parts of the code is slowing your model down and subsequently improving the throughput of your model training.
+Finally, there is the [configs/debug/profiler.yaml](configs/debug/profiler.yaml) config which will enable the [pytorch lightning profiler](https://lightning.ai/docs/pytorch/stable/tuning/profiler.html), which can be used to identify which parts of the code is slowing your model down and subsequently improving the throughput of your model training.
 
 ```bash
 python src/train.py debug=profiler
@@ -670,7 +689,8 @@ python src/train.py debug=profiler
 
 <br>
 
-## 3. [Optional] Running on a Slurm Cluster
+## 3. \[Optional\] Running on a Slurm Cluster
+
 The time series analytics software supports running on [Slurm](https://slurm.schedmd.com/documentation.html) clusters. This is useful for running experiments that take a long time to train, or for running many experiments in parallel. Through the magic of [Hydra plugins](https://hydra.cc/docs/plugins/submitit_launcher/), the time series analytics software can be configured to submit jobs through slurm, use GPU resources, and even use [Slurm arrays](https://slurm.schedmd.com/job_array.html) to run many experiments in parallel.
 
 ### Setup
@@ -705,7 +725,7 @@ and check nvidia-smi to confirm that your job is using GPU:
 nvidia-smi
 ```
 
-The standard output of your job is redirected to a file in the run log directory under <run_log_directory>/.submitit/<slurm_job_id>/<slurm_job_id>\_<job_array_id>\_log.out, and you can therefore also check this file to see the status of your job, or check the _log.err file for any errors. Note that when using the [slurm launcher](https://hydra.cc/docs/plugins/submitit_launcher/), the job will always be of <run_type> multirun even if you are only training/evaluating a single model.
+The standard output of your job is redirected to a file in the run log directory under \<run_log_directory>/.submitit/\<slurm_job_id>/\<slurm_job_id>\_\<job_array_id>\_log.out, and you can therefore also check this file to see the status of your job, or check the \_log.err file for any errors. Note that when using the [slurm launcher](https://hydra.cc/docs/plugins/submitit_launcher/), the job will always be of \<run_type> multirun even if you are only training/evaluating a single model.
 
 #### Hyperparameter optimization and other scripts that spawn new jobs
 
@@ -727,14 +747,13 @@ ssh -L 6007:localhost:6006 <username>@<cluster_address>
 
 which will forward the port 6006 on localhost on the cluster (where tensorboard sends data), to the port 6007 on your local machine, and you can now access tensorboard in your browser at [https://localhost:6007](https://localhost:6007) as you would if tensorboard was running locally on your machine.
 
-
 <br>
 
 ## 4. Hyperparameter Optimization
-Performing hyperparameter optimization is easy with the time series analytics software. Many optimization frameworks are supported including [Ax](https://hydra.cc/docs/plugins/ax_sweeper/), [Nevergrad](https://hydra.cc/docs/plugins/nevergrad_sweeper/), and [Optuna](https://hydra.cc/docs/plugins/optuna_sweeper/). We will focus on Optuna in this tutorial (the others have not been tested with the time series analytics software). 
+
+Performing hyperparameter optimization is easy with the time series analytics software. Many optimization frameworks are supported including [Ax](https://hydra.cc/docs/plugins/ax_sweeper/), [Nevergrad](https://hydra.cc/docs/plugins/nevergrad_sweeper/), and [Optuna](https://hydra.cc/docs/plugins/optuna_sweeper/). We will focus on Optuna in this tutorial (the others have not been tested with the time series analytics software).
 
 Hyperparameter optimization is configured in the [configs/hparams_search](configs/hparams_search) namespace, the [configs/hparams_search/example_optuna.yaml](configs/hparams_search/example_optuna.yaml) file shows an example with the [ARIMA model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.arima.html#).
-
 
 ```yaml
 # @package _global_
@@ -811,7 +830,7 @@ To run this example simply override the argument on the command line:
 python src/train.py hparams_search=example_optuna
 ```
 
-Optuna will create a database file on the path we configured in the hydra.sweeper.storage argument (by default logs/optuna/optuna_hyperopt.db), and in this database create an study with the name we set for hydra.sweeper.study_name. A single database file can hold multiple independent studies, or if we rerun the script with the same storage and study_name argument optuna will resume optimization from where it last left off. 
+Optuna will create a database file on the path we configured in the hydra.sweeper.storage argument (by default logs/optuna/optuna_hyperopt.db), and in this database create an study with the name we set for hydra.sweeper.study_name. A single database file can hold multiple independent studies, or if we rerun the script with the same storage and study_name argument optuna will resume optimization from where it last left off.
 
 The optimization results can be inspected using [optuna-dashboard](https://github.com/optuna/optuna-dashboard):
 
@@ -821,8 +840,7 @@ optuna-dashboard sqlite:///logs/optuna/hyperopt.db
 
 This will launch the optuna-dashboard service on port :8080 and can be viewed by going to [localhost:8080/](http://localhost:8080/) in your browser.
 
-
-As hyperparameter optimization will usually involve creating a large amount of model training runs, it is advisable to run it on a slurm cluster, or otherwise configure runs to work in parallel. 
+As hyperparameter optimization will usually involve creating a large amount of model training runs, it is advisable to run it on a slurm cluster, or otherwise configure runs to work in parallel.
 
 <br>
 
@@ -854,7 +872,6 @@ eval:
 #  train_val_test_split: some new split
 ```
 
-
 By default it configures eval with the following arguments from [configs/eval/default.yaml](configs/eval/default.yaml):
 
 ```yaml
@@ -875,20 +892,26 @@ mc_dropout: False
 plot_predictions: True
 log_metrics: True
 ```
+
 ### Eval split and runner
+
 The eval_split argument chooses which dataset split configured for the datamodule to evaluate the model on. Eval_runner chooses which method to run the evaluation: darts or pytorch lightning ([soon deprecated](https://github.com/unit8co/darts/issues/1531)), the latter gives large speed improvements for pytorch models. The eval_kwargs argument is passed to the [darts evaluator](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.arima.html#darts.models.forecasting.arima.ARIMA.backtest) to control its behaviour.
 
 ### Evaluation behaviour
+
 Evaluation is performed by starting from the datapoint controlled by the start argument, making one prediction of length argument forecast_horizon steps ahead, then stepping forward by argument stride datapoints, make the next prediction and so on until the dataset is exhausted. The retrain argument controls if the model is retrained on the data from start of dataset until current prediction point before every prediction. For local models (those that inherit from [configs/model/base_local.yaml](configs/model/base_local.yaml), it is also stated in the darts model documentation, e.g. [the ARIMA model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.arima.html) inherits from TransferableFutureCovariates**Local**ForecastingModel) this is required as it is how they operate, while for pytorch models and regression models this is optional (set to False by default for these models).
 
 ### Metrics
-For each prediction, the metrics defined in the eval_kwargs.metric argument are calculated and then averaged over all predictions. These metric values are saved in run directory/eval_<eval_split>_results.yaml. Further, if forecast_horizon is 1 and the plot_predictions argument is True the predictions are concatenated in time and showed alongside the true values in figures to the configured loggers and additionally saved in the run directory/plots directory. If you want to predict more than 1 step ahead and get prediction visualizations, see the [section on prediction](#5-predicting-with-a-trained-model).
+
+For each prediction, the metrics defined in the eval_kwargs.metric argument are calculated and then averaged over all predictions. These metric values are saved in run directory/eval\_\<eval_split>\_results.yaml. Further, if forecast_horizon is 1 and the plot_predictions argument is True the predictions are concatenated in time and showed alongside the true values in figures to the configured loggers and additionally saved in the run directory/plots directory. If you want to predict more than 1 step ahead and get prediction visualizations, see the [section on prediction](#5-predicting-with-a-trained-model).
 
 ### Pytorch models: checkpoints and dropout
+
 The checkpoint argument controls which model weights are used for pytorch models. "best" will select the checkpoint with the weights that gave the best validation epoch during training, otherwise the value should be the name of a checkpoint file found in run directory/checkpoints, e.g. "last.ckpt". Further, if the mc_dropout argument is set to False dropout will be disabled for models where this is used.
 
 ### Inverse data transformation
-For the darts evaluator configured in [configs/eval/backtest.yaml](configs/eval/backtest.yaml), one can additionally choose to inverse transform the data before plotting and calculating metric values using the argument inverse_transform_data. In this way one can inspect the predictions in the original untransformed space, and compare metric scores for models with different transformation pipelines. The partial_ok argument signals if it is acceptable that not all transformers are inverted, e.g. a NaN-filler is not invertible. Most of the time this should be fine. 
+
+For the darts evaluator configured in [configs/eval/backtest.yaml](configs/eval/backtest.yaml), one can additionally choose to inverse transform the data before plotting and calculating metric values using the argument inverse_transform_data. In this way one can inspect the predictions in the original untransformed space, and compare metric scores for models with different transformation pipelines. The partial_ok argument signals if it is acceptable that not all transformers are inverted, e.g. a NaN-filler is not invertible. Most of the time this should be fine.
 
 ```yaml
 eval_runner: "backtest"  # which method to use to perform evaluation. One of [backtest, trainer, null] (null will choose trainer for pytorch and backtest if not)
@@ -904,12 +927,14 @@ Lastly, there is the required argument model_dir. The model_dir argument should 
 python src/eval.py model_dir=logs/train/runs/run_name
 ```
 
-After running evaluation, you can inspect how the model did by looking at metric results or the prediction plots. To compare different models the mlflow logger is a powerful tool, [see the section on mlflow ui above to see how it works](#loggers). For instance being able to filter for models with the same eval_kwargs.forecast_horizon is convenient as metric scores are not necessarily comparable across different forecast_horizons etc. 
+After running evaluation, you can inspect how the model did by looking at metric results or the prediction plots. To compare different models the mlflow logger is a powerful tool, [see the section on mlflow ui above to see how it works](#loggers). For instance being able to filter for models with the same eval_kwargs.forecast_horizon is convenient as metric scores are not necessarily comparable across different forecast_horizons etc.
 
 Now you can try to train models with different configurations that we have explored above and compare how well they perform using the [mlflow ui](#loggers).
 
 For instance, use the [XGBoost model](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.xgboost.html) and train the following models using the [configuration option](#2-model-training) of your choice:
+
 1. No data transformations
+
 <details>
 <summary><b>Solution</b></summary>
 Modify configs/datamodule/example_airpassengers.yaml as follows:
@@ -970,7 +995,6 @@ python src/train.py model=xgboost datamodule=example_airpassengers
 </details>
 
 3. Diff and StandardScaler transformation
-
 
 <details>
 <summary><b>Solution</b></summary>
@@ -1149,8 +1173,7 @@ python src/train.py model=xgboost datamodule=example_airpassengers
 
 </details>
 
-
-Then open [mlflow ui](#loggers), add metrics.val_mse as a column and compare the models you have trained. You can also click on the model name to quantitatively inspect the model performance through the prediction plots. 
+Then open [mlflow ui](#loggers), add metrics.val_mse as a column and compare the models you have trained. You can also click on the model name to quantitatively inspect the model performance through the prediction plots.
 
 <br>
 
@@ -1187,7 +1210,8 @@ predict:
 ```
 
 ### Predict split
-The predict.split argument controls which dataset configured for the datamodule to predict from. 
+
+The predict.split argument controls which dataset configured for the datamodule to predict from.
 
 ### Inverse data transformation
 
@@ -1198,6 +1222,7 @@ See [evaluation section](#inverse-data-transformation).
 See [evaluation section](#metrics)
 
 ### Indices
+
 The datapoint indices from which to predict. These indices can be floats (looks up that percentile data point), int (absolute index), or timestamp (if the dataset is indexed with datetime). For each index, the model will predict n steps ahead, compute metrics for the prediction and generate a prediciton plot.
 
 ### Checkpoints
@@ -1206,7 +1231,7 @@ See [evaluation section](#pytorch-models--checkpoints-and-dropout)
 
 ### Predicting
 
-The predict.kwargs.n is a required argument that controls how many steps into the future to predict, see [model.predict in darts documentation](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.arima.html#darts.models.forecasting.arima.ARIMA.predict). For the configured data split, one prediction plot will be created for each index set in the predict.indices argument. If plot_encodings is True, then any encoders defined in model.encoders will also be included. These prediction plots will be presented according to the predict.presenter argument, see [src/utils/plotting.py](src/utils/plotting.py) for supported presenters (savefig/show). By default they will be saved in the run directory/plots directory. 
+The predict.kwargs.n is a required argument that controls how many steps into the future to predict, see [model.predict in darts documentation](https://unit8co.github.io/darts/generated_api/darts.models.forecasting.arima.html#darts.models.forecasting.arima.ARIMA.predict). For the configured data split, one prediction plot will be created for each index set in the predict.indices argument. If plot_encodings is True, then any encoders defined in model.encoders will also be included. These prediction plots will be presented according to the predict.presenter argument, see [src/utils/plotting.py](src/utils/plotting.py) for supported presenters (savefig/show). By default they will be saved in the run directory/plots directory.
 
 To generate these predictions run:
 

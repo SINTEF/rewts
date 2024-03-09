@@ -1,11 +1,10 @@
-from typing import Any, Dict, Optional, Tuple, List
-
-import pandas as pd
-import numpy as np
 import os
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 from src.datamodules.components.timeseries_datamodule import TimeSeriesDataModule
-
 from src.utils import pylogger
 
 log = pylogger.get_pylogger(__name__)
@@ -38,34 +37,44 @@ class ChunkedTimeSeriesDataModule(TimeSeriesDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
-    def __init__(self,
-                 *args,
-                 chunk_length: int,
-                 chunk_idx: Optional[int] = None,
-                 dataset_length: Optional[int] = None,
-                 # any argument listed here is configurable through the yaml config files and the command line.
-                 **kwargs):
+
+    def __init__(
+        self,
+        *args,
+        chunk_length: int,
+        chunk_idx: Optional[int] = None,
+        dataset_length: Optional[int] = None,
+        # any argument listed here is configurable through the yaml config files and the command line.
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._chunk_called = False
         self.save_hyperparameters(logger=False)
 
     def chunk_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Function to select a chunk from the dataset, controlled by the arguments chunk_idx and chunk_length. This
-        function will automatically be called during .setup if it has not been called already.
+        """Function to select a chunk from the dataset, controlled by the arguments chunk_idx and
+        chunk_length. This function will automatically be called during .setup if it has not been
+        called already.
 
         :param df: Data to be chunked
         :return: Chunked data
         """
-        # This could be bcause of resampling etc.
+        # This could be because of resampling etc.
         if self.hparams.dataset_length is not None and len(df) < self.hparams.dataset_length:
-            log.warning(f"The dataset_length argument used to calculate chunk indices is bigger than the actual dataset ({self.hparams.dataset_length} > {len(df)})")
+            log.warning(
+                f"The dataset_length argument used to calculate chunk indices is bigger than the actual dataset ({self.hparams.dataset_length} > {len(df)})"
+            )
 
         if self.hparams.chunk_idx is not None:
             if not (self.hparams.chunk_length is not None and self.hparams.chunk_idx is not None):
-                log.warning("chunk_idx is specified, but chunk_length is not defined. Chunking is disabled.")
+                log.warning(
+                    "chunk_idx is specified, but chunk_length is not defined. Chunking is disabled."
+                )
             else:
-                chunk_range = [self.hparams.chunk_idx * self.hparams.chunk_length, (self.hparams.chunk_idx + 1) * self.hparams.chunk_length]
+                chunk_range = [
+                    self.hparams.chunk_idx * self.hparams.chunk_length,
+                    (self.hparams.chunk_idx + 1) * self.hparams.chunk_length,
+                ]
                 df = self.crop_dataset_range(df, chunk_range)
 
         self._chunk_called = True
@@ -78,14 +87,14 @@ class ChunkedTimeSeriesDataModule(TimeSeriesDataModule):
         return self.hparams.dataset_length // self.hparams.chunk_length
 
     def _finalize_setup(self, load_dir: Optional[str] = None):
-        """
-        This function must be called by the setup function of any subclass of TimeSeriesDataModule. It performs the
-        final steps of the setup function, including fitting the processing pipeline, splitting the data into train, val
-        and test sets and transforming the sets, and resampling the data if needed. It also checks that the data is
-        valid and that the hparams are valid.
+        """This function must be called by the setup function of any subclass of
+        TimeSeriesDataModule. It performs the final steps of the setup function, including fitting
+        the processing pipeline, splitting the data into train, val and test sets and transforming
+        the sets, and resampling the data if needed. It also checks that the data is valid and that
+        the hparams are valid.
 
-        :param load_dir: The folder to which the state of the datamodule is saved for later reproduction.
-
+        :param load_dir: The folder to which the state of the datamodule is saved for later
+            reproduction.
         :return: None
         """
         if not self._chunk_called:

@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - base_regression
+
+model:
+  _target_: darts.models.forecasting.regression_model.RegressionModel
+  model:
+    _target_: sklearn.linear_model.ElasticNetCV
+  lags: 4
+
+datamodule:
+  precision: 64 # there is a bug with float32 and elasticNet (https://github.com/scikit-learn/scikit-learn/issues/21997)

@@ -5,14 +5,13 @@
 
 defaults:
   - override /experiment: chunk_base
-  - override /eval: backtest
   - override /hydra/sweeper: optuna
 
 # choose metric which will be optimized by Optuna
 # metrics have the naming pattern {data split}_{metric name} where metric name is the name of the function or class implementing the metric.
 # make sure this is the correct name of some metric defined in:
-  # Torch models:     model.loss_fn or model.torch_metrics
-  # Non-torch models: eval.kwargs.metric
+# Torch models:     model.loss_fn or model.torch_metrics
+# Non-torch models: eval.kwargs.metric
 optimized_metric: "test_mse"
 
 model_type: ??? # ensemble or global
@@ -34,12 +33,10 @@ callbacks:
 
 validate: False
 test: True
+predict: False
 
 trainer:
   max_epochs: 1000
-
-predict:
-  inverse_transform_data: False
 
 LOOKBACK_MAX_LENGTH: 300
 HOPT_DATA_FRACTION: 0.33
@@ -47,7 +44,7 @@ HOPT_DATA_FRACTION: 0.33
 ensemble_disable_logger: True
 
 datamodule:
-  train_val_test_split:  # relative to chunk_data_length
+  train_val_test_split: # relative to chunk_data_length
     train: 0.75
     val: 0.25
     test: null
@@ -68,7 +65,6 @@ eval:
   kwargs:
     start: ${LOOKBACK_MAX_LENGTH}
   inverse_transform_data: False
-
 
 ckpt: "best"
 

@@ -4,8 +4,9 @@
 # python train.py experiment=example
 
 defaults:
+  - override /ensemble: default.yaml
   - override /datamodule: electricity
-  - override /eval: backtest.yaml
+  - override /lr_tuner: none
   - _self_
   - override /model: ${datamodule}_tcn # last for possible retrain override
 
@@ -37,6 +38,7 @@ eval:
     forecast_horizon: 24
     stride: 24
     retrain: False
+    start: null # do not start evaluation from lookback_data_length when training models
 
 logger:
   mlflow:
@@ -45,8 +47,6 @@ logger:
 plot_datasets: False
 
 ensemble:
-  _target_: src.models.ensemble_model.TSEnsembleModel
-  fit_forecast_horizon: ${eval.kwargs.forecast_horizon}
   fit_weights_every: 1
   lookback_data_length: 150
-  autoregressive_mix: false  # quick benchmarks reveal small differences in metrics, but performance is better with false
+  autoregressive_mix: false # quick benchmarks reveal small differences in metrics, but performance is better with false

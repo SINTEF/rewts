@@ -10,5 +10,3 @@ train_val_test_split:
   train: 0.5
   val: 0.25
   test: 0.25
-
-

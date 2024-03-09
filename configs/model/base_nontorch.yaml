@@ -6,4 +6,3 @@ model:
   _target_: ???
 
 trainer: null
-

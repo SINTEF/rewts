@@ -9,9 +9,8 @@ model:
     _target_: sklearn.linear_model.ElasticNetCV
 
 datamodule:
-  precision: 64  # there is a bug with float32 and elasticNet (https://github.com/scikit-learn/scikit-learn/issues/21997)
+  precision: 64 # there is a bug with float32 and elasticNet (https://github.com/scikit-learn/scikit-learn/issues/21997)
 
 eval:
   kwargs:
-    retrain: False  # By default, models are retrained (causually, i.e. when predicting sample 100 it is trained on samples 1-99) on dataset when evaluated (val/test).
-
+    retrain: False # By default, models are retrained (causually, i.e. when predicting sample 100 it is trained on samples 1-99) on dataset when evaluated (val/test).

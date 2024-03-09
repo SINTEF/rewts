@@ -16,7 +16,5 @@ data_variables:
 train_val_test_split:
   train: [[800, 950], [1000, 1200]]
   val: [1250, 1350]
-  test: [[1450, 1550], [1600, 1750]]
+  test: [[1450, 1650], [1650, 1850]]
 #freq: "3M"   # the sampling frequency of the data as a Timestamp string (quarterly)
-
-

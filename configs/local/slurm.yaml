@@ -2,7 +2,7 @@
 
 defaults:
   - override /hydra/launcher: submitit_slurm
-  
+
 hydra:
   mode: "MULTIRUN" # mode must be multirun to use the slurm launcher
   launcher:
@@ -10,10 +10,9 @@ hydra:
     cpus_per_task: 2
     #gres: gpu:2          # gres can be used to exclusively grab resources, e.g. gpus
     mem_gb: 5
-    timeout_min: 1440     # 24 hours
-    array_parallelism: 8  # run up to eight jobs in parallel
-    #partition: sintef
-
-#datamodule:
-#  num_workers: ${hydra:launcher.cpus_per_task}
-#  pin_memory: False
+    timeout_min: 1440 # 24 hours
+    array_parallelism: 8 # run up to eight jobs in parallel
+    #partition: null
+    #additional_parameters:  # if the slurm server is configured to send emails, you can get notified on certain events
+    #  mail-user: "your.email@domain"
+    #  mail-type: "FAIL"

@@ -1,8 +1,13 @@
 # @package _global_
 
 defaults:
+  - predict: default.yaml
   - paths: default.yaml
   - hydra: default.yaml
+  # optional model (and datamodule) config for LocalForecastingModels which do not need to be trained first
+  - optional model: none
+  - optional datamodule: none
+  - optional ensemble: default.yaml
   # optional local config for machine/user specific settings
   # it's optional since it doesn't need to exist and is excluded from version control
   - optional local: default.yaml
@@ -17,41 +22,9 @@ ckpt: "best"
 task_name: "predict"
 tags: ["dev"]
 
-predict:
-  split: "test"  # which dataset split to predict on. One of [train, test, val]
-  fit_ensemble_weights: True
-  series_index: 0 # index of split series for splits with multiple series.
-  plot:
-    covariates: False
-    encodings: False
-    prediction_point: True  # draw a line at the prediction point
-    weights: True
-  presenter: "savefig"
-  #inverse_transform_data:
-  #  partial_ok: True
-  metric:
-    - _target_: darts.metrics.metrics.mse
-      _partial_: True
-  indices:
-    - 0.5
-    - 0.75
-  kwargs:
-    n: 30
-    verbose: True  # show progress of fitting ensemble weights
-
-datamodule:
-  train_val_test_split:
-    val: null
-    test: [0.25, 0.45]
-    train: null
-  chunk_length: null
-  chunk_idx: null
-
 extras:
   # disable output about accelerators and warnings about dataloaders
   disable_pytorch_lightning_output: True
-
 # The config loaded from the log folder can be overridden by the supplying new configuration, e.g.:
 #datamodule:
 #  train_val_test_split: some new split
-

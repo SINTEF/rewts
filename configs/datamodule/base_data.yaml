@@ -3,7 +3,8 @@ data_dir: ${paths.data_dir}
 crop_data_range: null
 train_val_test_split: null
 freq: null # Sampling frequency, if known set as pandas offset string (https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases)
-resample: null # if set, the data will be resampled (down/up) to the specified frequency.
+resample:
+  null # if set, the data will be resampled (down/up) to the specified frequency.
   #freq: "1H" #resample to this frequency
   #method: "mean" #using this method. Either 'interpolate' (between values of closest indexes in original data), or some pandas aggregation/transformation function (sum, mean, median, etc.)
 precision: 32 # Ability to set per timeseries?
@@ -18,5 +19,5 @@ processing_pipeline:
   _target_: darts.dataprocessing.Pipeline
   transformers:
     - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
-      fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
+      fill: "auto" # The default, will use pandas.Dataframe.interpolate()
   # n_jobs = n_cpu   # TODO: make something that on slurm local file sets to ncpus and on local is configurable

@@ -31,4 +31,3 @@ logger:
     experiment_name: ???
 
 model_dir: ${eval:'["${ensemble_model_dir}/" + str(i) for i in range(${datamodule.chunk_idx})] if "${model_type}" == "ensemble" else "${global_model_dir}/" + str(${datamodule.chunk_idx} - 1)'}
-

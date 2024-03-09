@@ -5,13 +5,17 @@
 defaults:
   - _self_
   - fit: default.yaml
-  - eval: backtest.yaml
+  - lr_tuner: default.yaml
+  - eval: default.yaml
+  - predict: default.yaml
   - callbacks: default.yaml
   - trainer: auto.yaml
   # debugging config (enable through command line, e.g. `python train.py debug=default)
   - debug: null
   - datamodule: electricity.yaml
   - model: rnn.yaml
+  # override to set ensemble config, e.g. to use same eval.kwargs.start as the ensemble model will use
+  - ensemble: null
   #- logger: mlflow # Torch models will use tensorboard and mlflow while nontorch models use mlflow by default. Override here or on command line
   - paths: default.yaml
   - extras: default.yaml
@@ -55,6 +59,6 @@ seed: null
 
 # plot datasets to loggers. Remove or set to false or None to disable.
 plot_datasets:
-  separate_components: True  # if true, will plot each variable in targets, covariates etc. separately, if false: all in one plot
+  separate_components: True # if true, will plot each variable in targets, covariates etc. separately, if false: all in one plot
 
 measure_execution_time: True

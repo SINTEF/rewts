@@ -6,6 +6,6 @@
 #SBATCH --mem-per-cpu=2GB
 #SBATCH --time 01-00:00:00
 
-cd logs/optuna
+cd logs/optuna || { echo "Failed to change directory."; exit 1; }
 
 optuna-dashboard sqlite:///hyperopt.db

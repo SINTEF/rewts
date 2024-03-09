@@ -32,7 +32,7 @@ def test_hydra_sweep(tmp_path):
         "-m",
         "hydra.sweep.dir=" + str(tmp_path),
         "model=arima",
-        "model.p=2,4"
+        "model.p=2,4",
     ] + overrides
 
     run_sh_command(command)

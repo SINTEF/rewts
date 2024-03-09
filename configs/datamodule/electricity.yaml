@@ -12,13 +12,13 @@ datamodule:
     target:
       - "nswprice"
     future_covariates:
-      - 'date'
-      - 'day'
-      - 'period'
-      - 'nswdemand'
-      - 'vicprice'
-      - 'vicdemand'
-      - 'transfer'
+      - "date"
+      - "day"
+      - "period"
+      - "nswdemand"
+      - "vicprice"
+      - "vicdemand"
+      - "transfer"
   processing_pipeline:
     _target_: darts.dataprocessing.Pipeline
     transformers:
@@ -26,7 +26,7 @@ datamodule:
       #  scaler:
       #    _target_: sklearn.preprocessing.MinMaxScaler
       - _target_: darts.dataprocessing.transformers.missing_values_filler.MissingValuesFiller
-        fill: "auto"  # The default, will use pandas.Dataframe.interpolate()
+        fill: "auto" # The default, will use pandas.Dataframe.interpolate()
   train_val_test_split:
     train: 0.5
     val: 0.25

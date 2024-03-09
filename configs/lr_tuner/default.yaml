@@ -1,0 +1,14 @@
+# TODO: where to put lr_tuner? Perhaps together with trainer? Or with model/base_torch?
+# If lr_tuner is set then pytorch lightning learning rate Tuner (https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.tuner.tuning.Tuner.html)
+# will be used and overwrite model.optimizer_kwargs.lr
+lr_find: # Wrapper for trainer.lr_find. See https://unit8co.github.io/darts/generated_api/darts.models.forecasting.block_rnn_model.html?highlight=lr_find#darts.models.forecasting.block_rnn_model.BlockRNNModel.lr_find
+  min_lr: 1e-08
+  max_lr: 1
+  num_training: 100 # number of learning rates to test
+  mode: "exponential" # Search strategy to update learning rate after each batch
+  early_stop_threshold: 4.0 # Threshold for stopping the search if loss is larger than early_stop_threshold*best_loss
+suggestion: # proposes a suggestion for learning rate based on the point with the steepest negative gradient.
+  skip_begin: 10 # how many samples to skip in the beginning; helps to avoid too naive estimates
+  skip_end: 1 # how many samples to skip in the end; helps to avoid too optimistic estimates
+error_on_fail: False # if true, training job will exit if no suitable initial learning rate could be found
+plot: True # if True, will plot the results of the learning rate tuner

@@ -5,4 +5,4 @@ defaults:
 
 eval:
   kwargs:
-    retrain: True  # By default, models are retrained (causually, i.e. when predicting sample 100 it is trained on samples 1-99) on dataset when evaluated (val/test).
+    retrain: True # By default, models are retrained (causually, i.e. when predicting sample 100 it is trained on samples 1-99) on dataset when evaluated (val/test).

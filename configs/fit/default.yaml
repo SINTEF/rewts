@@ -1,12 +1,9 @@
-
 # configuration of the model.fit call
-verbose: True  # print progress of fit
+verbose: True # print progress of fit
 #epochs: 10   # maximum number of epochs for training. if set will override the model's n_epochs argument
-max_samples_per_ts: null  # if set will use only the max_samples_per_ts most recent datapoints of the training set.
+max_samples_per_ts: null # if set will use only the max_samples_per_ts most recent datapoints of the training set.
 
 # pytorch num_workers argument. Number of data-loading workers that are created.
 # Increases memory-consumption but can also increase model throughput, especially for IO heavy dataloaders.
 # If set to 0 no dedicated loading workers (threads) are created, and the main thread does the data loading.
-num_loader_workers: 2  # TODO: does non-torch-models accept this?
-
-
+num_loader_workers: 0

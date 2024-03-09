@@ -1,10 +1,10 @@
-import pytest
 import pyrootutils
+import pytest
+
 root = pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from tests.helpers.run_if import RunIf
 from tests.helpers.run_sh_command import run_sh_command
-
 
 train_file = str(root / "src/train.py")
 eval_file = str(root / "src/eval.py")
@@ -13,7 +13,10 @@ hopt_file = str(root / "src/train_hopt.py")
 
 @RunIf(sh=True)
 @pytest.mark.slow
-@pytest.mark.parametrize("model", [None, "electricity_rnn", "electricity_xgboost", "electricity_elastic_net", "electricity_tcn"])
+@pytest.mark.parametrize(
+    "model",
+    [None, "electricity_rnn", "electricity_xgboost", "electricity_elastic_net", "electricity_tcn"],
+)
 def test_train_eval_experiments(tmp_path, model):
     """Test running chunk experiments with the four model architectures in the paper."""
     for experiment in ["global", "global_iterative", "ensemble"]:
@@ -41,7 +44,7 @@ def test_train_eval_experiments(tmp_path, model):
         "global_model_dir=" + str(tmp_path) + "/global_iterative",
         "hydra.sweep.dir=" + str(tmp_path) + "/eval_single",
         "++eval.kwargs.stride=1000",
-        f"model_type=global,ensemble"
+        "model_type=global,ensemble",
     ]
     run_sh_command(eval_single_chunk_command)
 
@@ -54,7 +57,7 @@ def test_train_eval_experiments(tmp_path, model):
         "global_model_dir=" + str(tmp_path) + "/global_iterative",
         "hydra.sweep.dir=" + str(tmp_path) + "/eval_iterative",
         "++eval.kwargs.stride=1000",
-        f"model_type=global,ensemble",
+        "model_type=global,ensemble",
         "chunk_idx_end=4",
     ]
     run_sh_command(eval_iterative_chunk_command)
@@ -80,6 +83,6 @@ def test_hopt(tmp_path, model_type):
         "++fit.max_samples_per_ts=10",
         "++ensemble.fit_weights_every=10000",
         "++eval.kwargs.stride=1000",
-        "logger=[]"
+        "logger=[]",
     ]
     run_sh_command(command)

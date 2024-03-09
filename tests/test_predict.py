@@ -1,45 +1,57 @@
 import os
-from hydra.core.hydra_config import HydraConfig
-import numpy as np
+from pathlib import Path
 
-from src.predict import predict, process_predict_index
-from src.train import train, initialize_objects
-import src.utils
-import pyrootutils
+import darts
+import matplotlib.pyplot as plt
+import pandas as pd
 import pytest
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
-from omegaconf import open_dict
-import hydra.core.utils
-import darts
-import matplotlib.pyplot as plt
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import OmegaConf, open_dict
+
+import src.models.utils
+import src.utils
+from src.predict import predict, process_predict_index
+from tests.helpers.retrain_utils import expected_retrain_status
+from tests.helpers.set_config import cfg_set_paths_and_hydra_args
 
 # TODO: test that we can run _DEFAULT_MODELS using different covariates that they support
 
+
 # make fixture that trains model for 1 epoch
-def test_covariates():
-    pass
-    # test that it works with covariates
-    # test that fig has as many axes as expected?
+# def test_covariates():
+#    pass
+#    # test that it works with covariates
+#    # test that fig has as many axes as expected?
+
 
 # test different types of prediction indices (int, timestamp, float)
 
 # test inverse transformation
-    # metric scores should be higher?
+# metric scores should be higher?
 
 # test RangeIndex and DatetimeIndex
 
 # test different n
-    #invalid (not provided)
+# invalid (not provided)
 
 # perhaps set up a conftest that trains a model we can use for all tests
 
 
+# TODO: test for fit_ensemble_weights=True
 def test_predictable_indices():
-    with initialize(version_base="1.3", config_path="../configs"):  # TODO: refactor this into conftest fixtures somehow
-        cfg = compose(config_name="train.yaml", return_hydra_config=True, overrides=["datamodule=example_ettm1", f"model=xgboost"])
+    """Test processing of predict indices."""
+    with initialize(
+        version_base="1.3", config_path="../configs"
+    ):  # TODO: refactor this into conftest fixtures somehow
+        cfg = compose(
+            config_name="train.yaml",
+            return_hydra_config=True,
+            overrides=["datamodule=example_ettm1", "model=xgboost"],
+        )
 
-    with open_dict(cfg):  # can not resolve hydra config, therefore remove after setting config
+    with open_dict(cfg):
         del cfg.logger
         del cfg.callbacks
         del cfg.trainer
@@ -53,93 +65,142 @@ def test_predictable_indices():
     with open_dict(cfg):  # can not resolve hydra config, therefore remove after setting config
         cfg_hydra = cfg.hydra
         del cfg.hydra
-    object_dict = initialize_objects(cfg)
+    object_dict = src.utils.instantiate_objects(cfg)
 
     model, datamodule = object_dict["model"], object_dict["datamodule"]
     datamodule.setup("fit")
 
-    data = datamodule.get_data(["series", "future_covariates", "past_covariates"], main_split=cfg.predict.split)
-    float_first = process_predict_index(0.0, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False)
+    data = datamodule.get_data(
+        ["series", "future_covariates", "past_covariates"], main_split=cfg.predict.split
+    )
+    float_first = process_predict_index(
+        0.0, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False
+    )
     assert float_first == cfg.model.lags
 
-    float_last = process_predict_index(1.0, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False)
-    assert float_last == len(data["future_covariates"]) - (cfg.model.lags_future_covariates[1] + cfg.predict.kwargs.n)
+    retrain_first = process_predict_index(0.0, cfg.predict.kwargs.n, model, data, retrain=True)
+    assert retrain_first >= float_first and retrain_first == model.min_train_series_length
 
-
-@pytest.mark.parametrize("model", ["linear_regression", "rnn"])
-def test_predict(tmp_path, model):
-    """Train for 1 epoch with `train.py`, evaluate with `eval.py`, and predict with 'predict.py'"""
-
-    src.utils.enable_eval_resolver()
-
-    root = pyrootutils.setup_root(
-        search_from=os.getcwd(),
-        indicator=".project-root",
-        pythonpath=True,
-        dotenv=True,
+    float_last = process_predict_index(
+        1.0, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False
+    )
+    assert float_last == len(data["future_covariates"]) - (
+        cfg.model.lags_future_covariates[1] + cfg.predict.kwargs.n
     )
 
-    assert f"{model}.yaml" in os.listdir(root / "configs" / "model"), "Missing model configuration file"
-    with initialize(version_base="1.3", config_path="../configs"):  # TODO: refactor this into conftest fixtures somehow
-        cfg_train = compose(config_name="train.yaml", return_hydra_config=True, overrides=["datamodule=example_ettm1", f"model={model}"])
+    assert (
+        process_predict_index(0, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False)
+        == 0
+    )
+    assert (
+        process_predict_index(99, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False)
+        == 99
+    )
 
-    is_torch_model = cfg_train.get("trainer", None) is not None
+    timestamp = "2023-10-02 15-00-00"
+    timestamp_index = process_predict_index(
+        timestamp, cfg.predict.kwargs.n, model, data, fit_ensemble_weights=False
+    )
+    assert timestamp_index.tz is None
+    assert timestamp_index == pd.Timestamp(timestamp).tz_localize(None)
 
-    with open_dict(cfg_train):
-        cfg_train.paths.output_dir = str(tmp_path)
-        cfg_train.paths.log_dir = str(tmp_path)
-        cfg_train.hydra.job.num = 0
-        cfg_train.hydra.job.id = 0
-        cfg_train.plot_datasets = False
-        if is_torch_model:
-            cfg_train.trainer.max_epochs = 1
-        else:
-            assert "fit" in cfg_train  # TODO: how to set number of epochs for nontorch? Is it always 1?
-            cfg_train.fit.verbose = False
-        cfg_train.eval.update(dict(eval_split="test", mc_dropout=False))
-        cfg_train.validate = False
-        cfg_train.test = True
 
-    HydraConfig().set_config(cfg_train)
+def run_predict_default_tests(cfg, train_func):
+    src.utils.enable_eval_resolver()
 
-    with open_dict(cfg_train):  # can not resolve hydra config, therefore remove after setting config
-        cfg_hydra = cfg_train.hydra
-        del cfg_train.hydra
+    train_metric_dict, train_objects = train_func
+    model_dir = Path(train_objects["cfg"].paths.output_dir)
 
-    train_metric_dict, train_objects = train(cfg_train)
+    with open_dict(cfg):
+        cfg.model_dir = model_dir
+        cfg.predict.split = "val"
+        cfg.predict.kwargs.n = 2
 
-    log_dir_files = os.listdir(tmp_path)
-    if is_torch_model:
-        assert "_model.pth.tar" in log_dir_files
-    else:
-        assert "model.pkl" in log_dir_files
+    cfg = src.utils.verify_and_load_config(cfg)
 
-    assert os.path.exists(tmp_path / "datamodule" / "pipeline.pkl")
+    test_predict_indices = [[0.0, 1.0], ["2016-07-15T00"], [50]]
 
-    hydra.core.utils._save_config(cfg_train, "config.yaml", tmp_path / ".hydra")
+    for predict_indices in test_predict_indices:
+        with open_dict(cfg):
+            cfg.predict.indices = predict_indices
 
+        HydraConfig().set_config(cfg)
+        predict_metrics, predict_objects = predict(cfg)
+
+        assert "figs" in predict_objects
+        assert "predictions" in predict_objects
+        assert len(predict_objects["figs"]) == len(cfg.predict.indices)
+        assert len(predict_objects["predictions"]) == len(cfg.predict.indices)
+        assert len(predict_objects["predictions"][0]) == cfg.predict.kwargs.n
+        assert isinstance(predict_objects["predictions"][0], darts.TimeSeries)
+        assert predict_objects["figs"][0][0] is None or isinstance(
+            predict_objects["figs"][0][0], plt.Figure
+        )
+
+        assert expected_retrain_status(
+            cfg, "predict.retrain", predict_objects["model"], train_objects["model"]
+        )
+
+
+def test_predict_torch(cfg_predict, get_trained_model_torch):
+    """Test that prediction with 'predict.py' works as expected."""
+    run_predict_default_tests(cfg_predict, get_trained_model_torch)
+
+
+def test_predict_nontorch(cfg_predict, get_trained_model_nontorch):
+    """Test that prediction with 'predict.py' works as expected."""
+    run_predict_default_tests(cfg_predict, get_trained_model_nontorch)
+
+
+def test_predict_local_model(tmp_path):
+    """Test predict.py with missing model_dir and LocalForecastingModel instead."""
+    with initialize(version_base="1.3", config_path="../configs"):
+        cfg = compose(
+            config_name="predict.yaml",
+            return_hydra_config=True,
+            overrides=["model=baseline_naive_seasonal", "datamodule=example_ettm1"],
+        )
+    cfg = cfg_set_paths_and_hydra_args(cfg.copy(), tmp_path)
+    metric_dict, object_dict = predict(cfg)
+
+    assert metric_dict is not None and len(metric_dict) > 0
+    assert len(object_dict["predictions"]) > 0
+    assert OmegaConf.is_missing(object_dict["cfg"], "model_dir")
+    assert object_dict["model"].training_series is not None
     GlobalHydra.instance().clear()
 
-    if is_torch_model:
-        assert "last.ckpt" in os.listdir(tmp_path / "checkpoints")
 
-    with initialize(version_base="1.3", config_path="../configs"):
-        cfg_predict = compose(config_name="predict.yaml", return_hydra_config=True, overrides=[f"model_dir={tmp_path}"])
+def test_predict_retrain(cfg_predict, get_trained_model_nontorch, get_trained_model_torch):
+    """Test that predict.retrain argument for 'predict.py' fits the model before predicting."""
+    with open_dict(cfg_predict):
+        cfg_predict.predict.retrain = True
+    run_predict_default_tests(cfg_predict, get_trained_model_nontorch)
+    run_predict_default_tests(cfg_predict, get_trained_model_torch)
 
-    cfg_predict = src.utils.load_saved_config(str(tmp_path), cfg_predict)  # TODO: this should be part of the eval script
+
+@pytest.mark.parametrize("fit_ensemble_weights", [True, False])
+def test_predict_ensemble(cfg_predict, get_trained_model_nontorch, fit_ensemble_weights):
+    """Test evaluate.py with ReWTSEnsembleModel."""
+    src.utils.enable_eval_resolver()
+
+    _, train_objects = get_trained_model_nontorch
+    model_dir = Path(train_objects["cfg"].paths.output_dir)
 
     with open_dict(cfg_predict):
-        cfg_predict.predict.indices = [0.0, 1.0]
-        cfg_predict.paths.output_dir = tmp_path
-        cfg_predict.extras.print_config = False
+        cfg_predict.model_dir = [model_dir, model_dir]
+        cfg_predict.predict.ensemble_weights.fit = fit_ensemble_weights
 
-    HydraConfig().set_config(cfg_predict)
-    predict_metrics, predict_objects = predict(cfg_predict)
+    cfg_predict = src.utils.verify_and_load_config(cfg_predict)
+    metric_dict, object_dict = predict(cfg_predict)
 
-    assert "figs" in predict_objects
-    assert "predictions" in predict_objects
-    assert len(predict_objects["figs"]) == len(cfg_predict.predict.indices)
-    assert len(predict_objects["predictions"]) == len(cfg_predict.predict.indices)
-    assert len(predict_objects["predictions"][0]) == cfg_predict.predict.kwargs.n
-    assert isinstance(predict_objects["predictions"][0], darts.TimeSeries)
-    assert predict_objects["figs"][0][0] is None or isinstance(predict_objects["figs"][0][0], plt.Figure)
+    assert len(object_dict.get("predictions")) > 0
+    assert src.models.utils.is_rewts_model(object_dict["model"])
+    if fit_ensemble_weights:
+        assert len(object_dict["model"]._weights_history) > 0
+        path_to_weights = os.path.join(
+            cfg_predict.paths.output_dir, "ensemble_weights", "predict_0_weights.pkl"
+        )
+        assert os.path.exists(path_to_weights)
+    else:
+        assert len(object_dict["model"]._weights_history) == 0
+    GlobalHydra.instance().clear()

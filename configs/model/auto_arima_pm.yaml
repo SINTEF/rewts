@@ -1,9 +1,6 @@
-# @package _global_
-
 # NB: very slow to fit
 
 defaults:
   - base_local
 
-model:
-  _target_: darts.models.forecasting.auto_arima.AutoARIMA
+_target_: darts.models.forecasting.auto_arima.AutoARIMA

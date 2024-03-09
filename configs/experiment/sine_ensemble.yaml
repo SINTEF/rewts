@@ -6,7 +6,6 @@
 defaults:
   - override /datamodule: sine.yaml
   - override /model: rnn.yaml
-  - override /eval: backtest.yaml
   - _self_
 
 # all parameters below will be merged with parameters from default configurations set above
@@ -23,9 +22,9 @@ hydra:
       ++datamodule.chunk_idx: range(8) # creates one model per chunk
 
 model:
-  hidden_dim: 10          # gives ~500 learnable parameters (~1/8 of global model)
-  input_chunk_length: 80  # datapoints used to warm up the lstm before making predictions, contains at least 1 sine period
-  training_length: 110    # number of iterations through the lstm cell during training: input_chunk_length + 30 step predictions
+  hidden_dim: 10 # gives ~500 learnable parameters (~1/8 of global model)
+  input_chunk_length: 80 # datapoints used to warm up the lstm before making predictions, contains at least 1 sine period
+  training_length: 110 # number of iterations through the lstm cell during training: input_chunk_length + 30 step predictions
   batch_size: 32
 
 datamodule:
@@ -42,7 +41,7 @@ callbacks:
     min_delta: 0.01
 
 ensemble:
-  _target_: src.models.ensemble_model.TSEnsembleModel
+  _target_: src.models.ensemble_model.ReWTSEnsembleModel
   fit_forecast_horizon: 30
   fit_stride: 1
   fit_weights_every: 1
@@ -60,4 +59,3 @@ eval:
 
 predict:
   inverse_transform_data: False
-

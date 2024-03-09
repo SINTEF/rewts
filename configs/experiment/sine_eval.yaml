@@ -1,14 +1,13 @@
 # @package _global_
 
 eval:
-  split: "test"  # which dataset split to evaluate on. One of [test, val]
-  runner: "backtest"
+  split: "test" # which dataset split to evaluate on. One of [test, val]
   kwargs:
     forecast_horizon: 30
     stride: 30
     start: ${ensemble.lookback_data_length}
     retrain: False
-  metrics_scale_amplitude: True  # TS-Ensemble specific for sine datamodule
+  metrics_scale_amplitude: True # TS-Ensemble specific for sine datamodule
   #inverse_transform_data:
   #  partial_ok: True
 
@@ -32,4 +31,3 @@ extras:
 logger:
   mlflow:
     experiment_name: "sine-eval"
-

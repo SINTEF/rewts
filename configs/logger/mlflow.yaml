@@ -4,7 +4,7 @@
 logger:
   mlflow:
     _target_: pytorch_lightning.loggers.mlflow.MLFlowLogger
-    experiment_name: "tsensemble"  # set to lightning_logs by default
+    experiment_name: "rewts" # set to lightning_logs by default
     run_name: ${eval:'"${now:%Y-%m-%d}_${now:%H-%M-%S}" + ("_${hydra:job.num}" if "${hydra:mode}" == "RunMode.MULTIRUN" else "") + "_" + "${logger.mlflow.tags.model}"'}
     tracking_uri: file:${paths.log_dir}/mlflow/mlruns # run `mlflow ui` command inside the `logs/mlflow/` dir to open the UI
     tags:

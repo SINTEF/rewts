@@ -15,7 +15,7 @@ datamodule:
     val: 0.1
     test: null
   chunk_idx: null
-  crop_data_range:    # crop dataset to match ensemble
+  crop_data_range: # crop dataset to match ensemble
     - ${eval:'${chunk_idx_start} * ${datamodule.chunk_length}'}
     - ${eval:'(${chunk_idx} + 1) * ${datamodule.chunk_length}'}
 
