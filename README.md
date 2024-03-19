@@ -39,7 +39,8 @@ conda activate rewts
 # install requirements
 pip install -r requirements.txt
 
-# [OPTIONAL] if you cloned the repository to a slurm cluster, run the script below to automatically submit jobs through slurm
+# [OPTIONAL] if you cloned the repository to a slurm cluster,
+# run the script below to automatically submit jobs through slurm
 bash scripts/configure_slurm.sh
 ```
 
@@ -162,7 +163,7 @@ Also note that the dataset set to self.data at the end of the setup() function m
 
 ## Process Data Experiments
 
-The main branch of this repository is under active development. The state of the code used to produce the results of the paper and the results on the electricity dataset showed below is available on the branch paper.
+The main branch of this repository is under active development. The state of the code used to produce the results of the paper and the results on the electricity dataset shown below is available on the branch paper.
 
 This section documents the experiments where process data is chunked in time. The datasets employed in the paper are not publicly available. Instead, we will illustrate the procedure using the Electricity dataset (Harries 1999), a dataset often used to evaluate machine learning models in the context of concept drift. In this sense, it is similar to the datasets employed in the paper. The dataset was downloaded from this [link](https://www.openml.org/search?type=data&sort=runs&id=151&status=active), and is included in the repository at [data/electricity-normalized.arff](data/electricity-normalized.arff)
 
@@ -265,4 +266,13 @@ and inspect the "sine-eval" experiment.
 
 # Citation
 
-TODO: update with bibtex reference for paper.
+If you use this software in your work, please consider citing:
+
+```latex
+@article{rewts,
+  title={Recency-Weighted Temporally-Segmented Ensemble for Time-Series Modeling},
+  author={Johnsen, P{\aa}l V and B{\o}hn, Eivind and Eidnes, S{\o}lve and Remonato, Filippo and Riemer-S{\o}rensen, Signe},
+  journal={arXiv preprint arXiv:2403.02150},
+  year={2024}
+}
+```

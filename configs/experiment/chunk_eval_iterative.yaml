@@ -6,8 +6,8 @@ defaults:
   - _self_
 
 # These two directories should contain chunk_idx_end # models, each trained on one chunk (ensemble) or cumulative chunks (global)
-ensemble_model_dir: "logs/train/multiruns/2023-09-13_12-29-43"
-global_model_dir: "logs/train/multiruns/2023-09-13_12-29-43"
+ensemble_model_dir: "path/to/ensemble/models"
+global_model_dir: "path/to/global/models"
 chunk_idx_end: ???
 model_type: ???
 
@@ -15,7 +15,9 @@ hydra:
   mode: "MULTIRUN"
   sweeper:
     params:
-      ++datamodule.chunk_idx: range(2,${chunk_idx_end}) # starting on chunk #3 (because ensemble requires at least two models, and we predict on the next one)
+      # starting on chunk #3 (because ensemble requires at least two models, and we predict on the next one)
+      # and include chunk_idx_end (thus + 1)
+      ++datamodule.chunk_idx: range(2, ${eval:'int(${chunk_idx_end}) + 1'})
 
 datamodule:
   train_val_test_split:

@@ -35,6 +35,7 @@ _SCALER_PIPELINE_CONFIG = dict(
 
 @pytest.mark.parametrize("lags", [[4], [4, 1], 4])
 def test_pipeline_inverse_diff(get_darts_example_dm, lags):
+    """Test pipeline inverse transformation with a DiffTransformer."""
     dm = get_darts_example_dm
     dm.hparams.train_val_test_split = {"train": 0.5, "val": 0.25, "test": 0.25}
     if isinstance(lags, list):
@@ -67,6 +68,8 @@ def test_pipeline_inverse_diff(get_darts_example_dm, lags):
 @pytest.mark.parametrize("dataset_name", ["example_ettm1"])
 @pytest.mark.parametrize("pipeline_config", [_SCALER_PIPELINE_CONFIG])
 def test_pipeline_subset(get_darts_example_dm, pipeline_config):
+    """Test that inverse transforming with a subset of the original data (e.g. only the target
+    variable) works and returns correct result."""
     dm = get_darts_example_dm
     dm.hparams.processing_pipeline = hydra.utils.instantiate(pipeline_config)
     dm.setup("fit")
@@ -89,6 +92,7 @@ def test_pipeline_subset(get_darts_example_dm, pipeline_config):
 @pytest.mark.parametrize("dataset_name", ["example_ettm1", "example_aus_beer"])
 @pytest.mark.parametrize("pipeline_config", [_SCALER_PIPELINE_CONFIG, None])
 def test_pipeline(get_darts_example_dm, pipeline_config):
+    """Test that dataset transformation pipeline works and is only fitted on training data."""
     dm = get_darts_example_dm
     dm.hparams.processing_pipeline = hydra.utils.instantiate(pipeline_config)
     dm.setup("fit")
@@ -198,6 +202,7 @@ def test_inverse_transform_data_func(get_darts_example_dm, pipeline_config):
     "crop_data_range", [["1980-01-01", "2000-01-01"], ["1980-01-01", "2050-01-01"]]
 )
 def test_crop_data_range(get_darts_example_dm, crop_data_range):
+    """Test cropping logic of datamodule."""
     dm = get_darts_example_dm
     dm.hparams.crop_data_range = crop_data_range
     dm.setup("fit")
@@ -209,6 +214,7 @@ def test_crop_data_range(get_darts_example_dm, crop_data_range):
 
 @pytest.mark.parametrize("precision", [64, 32, 16, "invalid"])
 def test_precision(get_darts_example_dm, precision):
+    """Test datamodule logic for setting precision of dataset."""
     dm = get_darts_example_dm
     dm.hparams.precision = precision
 
@@ -227,6 +233,7 @@ def test_precision(get_darts_example_dm, precision):
 
 
 def test_setup_load_dir(tmp_path, get_darts_example_dm):
+    """Test that datamodule state is loaded from provided path."""
     dm = copy.deepcopy(get_darts_example_dm)
     dm.hparams.processing_pipeline = hydra.utils.instantiate(_SCALER_PIPELINE_CONFIG)
     dm.setup("fit")
@@ -260,6 +267,7 @@ def test_setup_load_dir(tmp_path, get_darts_example_dm):
     ],
 )
 def test_split_float_int(get_darts_example_dm, split):
+    """Test dataset splitting logic when given floats and integers."""
     dm = get_darts_example_dm
     dm.hparams.train_val_test_split = split
     dm.hparams.processing_pipeline = None
@@ -341,6 +349,7 @@ def test_split_float_int(get_darts_example_dm, split):
     ],
 )
 def test_split_timestamp(get_darts_example_dm, split):
+    """Test dataset splitting logic when given timestamps."""
     dm = get_darts_example_dm
     dm.hparams.train_val_test_split = split
     dm.hparams.processing_pipeline = None
@@ -389,6 +398,7 @@ def test_split_timestamp(get_darts_example_dm, split):
 
 @pytest.mark.parametrize("dataset_name", ["example_ettm1"])
 def test_get_data(get_darts_example_dm):
+    """Test utility function to get data from datamodule given function argument names."""
     dm = get_darts_example_dm
     dm.setup("fit")
 
@@ -430,6 +440,7 @@ def test_get_data(get_darts_example_dm):
 @pytest.mark.parametrize("resample_method", ["interpolate", "mean", "sum", "non_existent"])
 @pytest.mark.parametrize("freq", ["1Y", "invalid", "2Y"])
 def test_resample(get_darts_example_dm, resample_method, freq):
+    """Test resampling (in time) logic of datamodule."""
     dm = copy.deepcopy(get_darts_example_dm)
     dm.hparams.resample = dict(freq=freq, method=resample_method)
     if resample_method == "non_existent" or freq == "invalid":
@@ -502,6 +513,8 @@ def test_resample(get_darts_example_dm, resample_method, freq):
 
 
 def test_non_unique_data_variables(get_darts_example_dm):
+    """Test that an exception is raised if using one data_variable for several covariates /
+    targets."""
     dm = get_darts_example_dm
     dm.hparams.data_variables = {"target": "test", "past_covariates": "test"}
 
@@ -511,6 +524,7 @@ def test_non_unique_data_variables(get_darts_example_dm):
 
 @pytest.mark.parametrize("dataset_name", ["example_basic_dataset"])
 def test_data_source(get_darts_example_dm):
+    """Test that data_source logic for darts example datasets datamodule is working as expected."""
     dm = get_darts_example_dm
     assert "data_source" in dm.hparams
     assert dm.__class__ is src.datamodules.TimeSeriesDataModule
@@ -534,9 +548,26 @@ def test_data_source(get_darts_example_dm):
     "dataset_name", ["example_basic_dataset", "example_ettm1_multiple-series"]
 )
 def test_plot_data(get_darts_example_dm):
+    """Test plotting data does not raise any exceptions."""
     dm = get_darts_example_dm
     dm.setup("fit")
 
     dm.plot_data()
     for split in ["train", "val", "test"]:
         dm.plot_data(split=split)
+
+
+@pytest.mark.parametrize("dataset_name", ["electricity"])
+def test_illegal_chunk_idx(get_darts_example_dm):
+    """Test that errors are raised when an invalid chunk_idx is given."""
+    dm = get_darts_example_dm
+
+    dm.hparams.chunk_idx = -1
+    with pytest.raises(ValueError):
+        dm.setup("fit")
+    dm.hparams.chunk_idx = dm.num_chunks
+    with pytest.raises(ValueError):
+        dm.setup("fit")
+
+    dm.hparams.chunk_idx = dm.num_chunks - 1
+    dm.setup("fit")

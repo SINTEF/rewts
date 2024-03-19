@@ -32,3 +32,20 @@ function send_slack_notification() {
 
     curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"${message}\"}" "$WEBHOOK_URL"
 }
+
+
+function find_highest_chunk() {
+    local model_dir="$1"
+    local highest_chunk
+
+    # List directories, filter out non-integer names, and find the maximum
+    highest_chunk=$(find "$model_dir" -maxdepth 1 -type d -exec basename {} \; | grep -E '^[0-9]+$' | sort -n | tail -n 1)
+
+    if [[ -n $highest_chunk ]]; then
+        echo "$highest_chunk"  # Output the result
+        return 0  # Success
+    else
+        echo "No run-directories found in $model_dir" >&2  # Error message to stderr
+        return 1  # Signal failure
+    fi
+}

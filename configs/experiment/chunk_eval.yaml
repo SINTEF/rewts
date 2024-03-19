@@ -19,10 +19,9 @@ eval:
     metric:
       - _target_: darts.metrics.metrics.mse
         _partial_: True
-      - _target_: darts.metrics.metrics.r2_score
-        _partial_: True
-      - _target_: darts.metrics.metrics.coefficient_of_variation
-        _partial_: True
+      # you can add additional metrics
+      #- _target_: darts.metrics.metrics.r2_score
+      #  _partial_: True
   split: "test"
 
 datamodule:

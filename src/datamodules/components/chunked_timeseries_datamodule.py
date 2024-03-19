@@ -70,6 +70,10 @@ class ChunkedTimeSeriesDataModule(TimeSeriesDataModule):
                 log.warning(
                     "chunk_idx is specified, but chunk_length is not defined. Chunking is disabled."
                 )
+            elif not 0 <= self.hparams.chunk_idx < self.num_chunks:
+                raise ValueError(
+                    f"given chunk_idx ({self.hparams.chunk_idx}) is not a valid chunk_idx for the dataset (0 - {self.num_chunks - 1})."
+                )
             else:
                 chunk_range = [
                     self.hparams.chunk_idx * self.hparams.chunk_length,

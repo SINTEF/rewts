@@ -1,7 +1,7 @@
 import pytest
 
 from tests.helpers.run_if import RunIf
-from tests.helpers.run_sh_command import run_sh_command
+from tests.helpers.run_sh_command import run_sh_python_command
 
 startfile = "src/train.py"
 overrides = ["logger=[]"]
@@ -19,7 +19,7 @@ def test_experiments(tmp_path):
         "hydra.sweep.dir=" + str(tmp_path),
         "++trainer.fast_dev_run=true",
     ] + overrides
-    run_sh_command(command)
+    run_sh_python_command(command)
 
 
 @pytest.mark.skip(reason="Use chunk specific tests instead")
@@ -35,7 +35,7 @@ def test_hydra_sweep(tmp_path):
         "model.p=2,4",
     ] + overrides
 
-    run_sh_command(command)
+    run_sh_python_command(command)
 
 
 @pytest.mark.skip(reason="Not relevant")
@@ -54,7 +54,7 @@ def test_hydra_sweep_ddp_sim(tmp_path):
         "+trainer.limit_test_batches=0.1",
         "model.optimizer.lr=0.005,0.01,0.02",
     ] + overrides
-    run_sh_command(command)
+    run_sh_python_command(command)
 
 
 @pytest.mark.skip(reason="Use chunk specific tests instead")
@@ -71,7 +71,7 @@ def test_optuna_sweep_nontorch(tmp_path):
         "hydra.sweeper.sampler.n_startup_trials=2",
         "++fit.max_samples_per_ts=50",
     ] + overrides
-    run_sh_command(command)
+    run_sh_python_command(command)
 
 
 @pytest.mark.skip(reason="Use chunk specific tests instead")
@@ -91,7 +91,7 @@ def test_optuna_sweep_torch(tmp_path):
         "hydra.sweeper.sampler.n_startup_trials=2",
         "++trainer.fast_dev_run=true",
     ] + overrides
-    run_sh_command(command)
+    run_sh_python_command(command)
 
 
 @pytest.mark.skip(reason="Not relevant")
@@ -112,4 +112,4 @@ def test_optuna_sweep_ddp_sim_wandb(tmp_path):
         "+trainer.limit_test_batches=0.1",
         "logger=wandb",
     ]
-    run_sh_command(command)
+    run_sh_python_command(command)

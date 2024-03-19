@@ -4,31 +4,43 @@ cd "$SCRIPT_DIR"/.. || exit
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR"/common.sh
 
-# Define start, end, and step for the loop
-start=1008  # 6 * 24 * 7
-end=4032   # 6 * 24 * 28
-step=1008   # 6 * 24 * 7
-# Generate a sequence of chunk lengths
+# Default values
+default_chunk_lengths="4032,3024,2016,1008,720"
+default_models="xgboost,tcn,rnn,elastic_net"
+default_datamodule="electricity"
 
-mapfile -t chunk_lengths < <(seq $start -$step $end)
+# Parse command-line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --chunk_lengths) chunk_lengths="$2"; shift ;;
+        --models) models="$2"; shift ;;
+        --datamodule) datamodule="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
 
-chunk_lengths+=(720)
+# Use the default values if not provided
+chunk_lengths=${chunk_lengths:-$default_chunk_lengths}
+models=${models:-$default_models}
+datamodule=${datamodule:-$default_datamodule}
 
-datamodule="electricity"
+IFS=',' read -r -a chunk_lengths_array <<< "$chunk_lengths"
+IFS=',' read -r -a models_array <<< "$models"
+
 models=("xgboost" "tcn" "rnn" "elastic_net")
 
-echo "Running chunk_length experiments for datamodule=$datamodule and models=${models[*]} with chunk_lengths: ${chunk_lengths[*]}"
+echo "Running chunk_length experiments for datamodule=$datamodule, models: (${models_array[*]}), chunk_lengths: (${chunk_lengths_array[*]})"
 
-for model in "${models[@]}"; do
-    # Loop over the range
-    for i in "${chunk_lengths[@]}"; do
-        echo "Running script for: model=$model chunk_length=$i"
+for model in "${models_array[@]}"; do
+    for chunk_length in "${chunk_lengths_array[@]}"; do
+        echo "Running script for: model=$model chunk_length=${chunk_length}"
 
         {
-            scripts/run_iterative_experiment.sh ++datamodule.chunk_length="$i" -train datamodule="$datamodule" model="${datamodule}"_"${model}" ~logger -eval +logger=mlflow logger.mlflow.experiment_name="${datamodule}"_eval-it_"${model}"_chunk-length-"$i"
-        } || {  # execute this code if the command fails
-            echo "Script failed for model=$model chunk_length=$i"
-            send_slack_notification "chunk_length experiment failed for: model=$model chunk_length=$i"
+            scripts/run_iterative_experiment.sh ++datamodule.chunk_length="${chunk_length}" -train datamodule="$datamodule" model="${datamodule}"_"${model}" ~logger -eval +logger=mlflow logger.mlflow.experiment_name="${datamodule}"_eval-it_"${model}"_chunk-length-"${chunk_length}"
+        } || {
+            echo "Script failed for model=$model chunk_length=${chunk_length}"
+            send_slack_notification "chunk_length experiment failed for: model=$model chunk_length=${chunk_length}"
             exit 1
         }
     done

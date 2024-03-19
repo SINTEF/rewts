@@ -1,14 +1,18 @@
+import glob
+import os
+
 import pyrootutils
 import pytest
 
 root = pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from tests.helpers.run_if import RunIf
-from tests.helpers.run_sh_command import run_sh_command
+from tests.helpers.run_sh_command import run_sh_bash_command, run_sh_python_command
 
-train_file = str(root / "src/train.py")
-eval_file = str(root / "src/eval.py")
-hopt_file = str(root / "src/train_hopt.py")
+train_file = str(root / "src" / "train.py")
+eval_file = str(root / "src" / "eval.py")
+hopt_file = str(root / "src" / "train_hopt.py")
+iterative_experiment_file = str(root / "scripts" / "run_iterative_experiment.sh")
 
 
 @RunIf(sh=True)
@@ -32,7 +36,7 @@ def test_train_eval_experiments(tmp_path, model):
         ]
         if model is not None:
             train_command.append("model=" + model)
-        run_sh_command(train_command)
+        run_sh_python_command(train_command)
 
     eval_single_chunk_command = [
         eval_file,
@@ -46,7 +50,7 @@ def test_train_eval_experiments(tmp_path, model):
         "++eval.kwargs.stride=1000",
         "model_type=global,ensemble",
     ]
-    run_sh_command(eval_single_chunk_command)
+    run_sh_python_command(eval_single_chunk_command)
 
     eval_iterative_chunk_command = [
         eval_file,
@@ -58,9 +62,54 @@ def test_train_eval_experiments(tmp_path, model):
         "hydra.sweep.dir=" + str(tmp_path) + "/eval_iterative",
         "++eval.kwargs.stride=1000",
         "model_type=global,ensemble",
-        "chunk_idx_end=4",
+        "chunk_idx_end=3",
     ]
-    run_sh_command(eval_iterative_chunk_command)
+    run_sh_python_command(eval_iterative_chunk_command)
+
+
+@RunIf(sh=True)
+@pytest.mark.slow
+def test_iterative_experiment_script(tmp_path):
+    """Test the run_iterative_experiment.sh script running an integrated train and evaluation
+    pipeline."""
+    os.environ["LOGS_ROOT"] = str(tmp_path)
+    script_command = [
+        iterative_experiment_file,
+        "++eval.kwargs.stride=5000",
+        "-train",
+        "datamodule=electricity",
+        "model=electricity_elastic_net",
+        "datamodule.chunk_length=15104",  # gives 3 chunks
+        "trainer.max_epochs=2",
+        "++fit.max_samples_per_ts=10",
+        "logger=[]",
+        "-eval",
+        "++ensemble.fit_weights_every=10000",
+    ]
+    run_sh_bash_command(script_command)
+
+    def filter_only_run_dirs(folders):
+        return [folder for folder in folders if folder.split("/")[-1].isdigit()]
+
+    NUM_TRAINING_CHUNKS = 3
+    NUM_EVAL_CHUNKS = NUM_TRAINING_CHUNKS - 2
+    model_types = ["ensemble", "global"]
+
+    train_logs_dir = tmp_path / "train" / "multiruns"
+    assert len(glob.glob(str(train_logs_dir / "*"))) == len(model_types)
+    for model_type in model_types:
+        assert len(glob.glob(str(train_logs_dir / f"*_{model_type}"))) == 1
+        assert (
+            len(filter_only_run_dirs(glob.glob(str(train_logs_dir / f"*_{model_type}" / "*"))))
+            == NUM_TRAINING_CHUNKS
+        )
+
+    eval_logs_dir = tmp_path / "eval" / "multiruns"
+    assert len(glob.glob(str(eval_logs_dir / "*_itexp"))) == 1
+    assert (
+        len(filter_only_run_dirs(glob.glob(str(eval_logs_dir / "*_itexp" / "*"))))
+        == len(model_types) * NUM_EVAL_CHUNKS
+    )
 
 
 @RunIf(sh=True)
@@ -85,4 +134,4 @@ def test_hopt(tmp_path, model_type):
         "++eval.kwargs.stride=1000",
         "logger=[]",
     ]
-    run_sh_command(command)
+    run_sh_python_command(command)

@@ -229,11 +229,12 @@ class PredictionPlotterCallback(
                     model_std = dist.scale.squeeze(0)
             else:
                 model_output = model_output.squeeze(-1)
+            loss = pl_module.criterion(model_output, future_target.unsqueeze(0))
             model_output = model_output.squeeze(0)
-            loss = pl_module.criterion(model_output, future_target)
 
         n_past_target = past_target.size(-1)
 
+        sequence_length = model_output.size(0)
         n_axis = n_past_target
         n_past_covariates = 0
         n_future_covariates = 0
@@ -260,13 +261,13 @@ class PredictionPlotterCallback(
         )
         fig.suptitle(fig_name + f", {pl_module.criterion} = {loss:.4f}")
         if isinstance(pl_module, darts.models.forecasting.rnn_model._RNNModule):
-            past_time_index = list(range(-1, model_output.shape[0] - 1))
-            future_time_index = list(range(model_output.shape[0]))
+            past_time_index = list(range(-1, sequence_length - 1))
+            future_time_index = list(range(sequence_length))
         else:
             past_time_index = list(range(-pl_module.input_chunk_length, 0))
             future_time_index = list(
                 range(
-                    -(model_output.size(0) - pl_module.output_chunk_length),
+                    -(sequence_length - pl_module.output_chunk_length),
                     pl_module.output_chunk_length,
                 )
             )  # TODO: what if output_length > input_length?
@@ -307,7 +308,8 @@ class PredictionPlotterCallback(
                 )
             with torch.no_grad():
                 feature_i_loss = pl_module.criterion(
-                    model_output[:, feature_i], future_target[:, feature_i]
+                    model_output[:, feature_i].reshape(1, -1, 1),
+                    future_target[:, feature_i].reshape(1, -1, 1),
                 )
             axs[feature_i].set_title(
                 f"Target: {self._format_data_name(target_names[feature_i], max_length=40)}, {pl_module.criterion} = {feature_i_loss:.4f}"

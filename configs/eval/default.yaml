@@ -5,10 +5,9 @@ kwargs: # keyword arguments passed to the backtest eval runner. See backtest doc
   metric:
     - _target_: darts.metrics.metrics.mse
       _partial_: True
-    - _target_: darts.metrics.metrics.r2_score
-      _partial_: True
-    - _target_: darts.metrics.metrics.coefficient_of_variation
-      _partial_: True
+    # you can add additional metrics
+    #- _target_: darts.metrics.metrics.r2_score
+    #  _partial_: True
   forecast_horizon: 24
   stride: 24
   # Note that setting start here will overwrite the values set by the model, which could introduce bugs.

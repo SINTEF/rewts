@@ -51,7 +51,7 @@ def task_wrapper(task_func: Callable) -> Callable:
                         if additional_message is not None:
                             details["message"] += f". {additional_message}"
 
-                        notifier.notify(**details)
+                        notifier.notify(raise_on_errors=True, **details)
                         log.info(f"Notification sent for {event} event to {endpoint}")
                     except NotificationError as e:
                         log.error(
