@@ -136,7 +136,7 @@ def run(
                     inverse_transform_data_func, predictions_seq[pred_i]
                 )
             if eval_kwargs.get("forecast_horizon", 1) == eval_kwargs.get("stride", 1):
-                predictions_seq[pred_i] = darts.timeseries.concatenate(predictions_seq[pred_i])
+                predictions_seq[pred_i] = [darts.timeseries.concatenate(predictions_seq[pred_i])]
 
         prediction_data_seq = src.utils.get_model_supported_data(
             datamodule, model, main_split=cfg.eval.split
@@ -171,7 +171,7 @@ def run(
             if is_multiple_series:
                 predictions_to_save = predictions_seq
             else:
-                predictions_to_save = predictions_seq[0]
+                predictions_to_save = darts.utils.utils.seq2series(predictions_seq[0])
 
             pred_folder = os.path.join(cfg.paths.output_dir, "predictions")
             os.makedirs(pred_folder, exist_ok=True)
@@ -192,7 +192,7 @@ def run(
             if is_multiple_series:
                 object_dict["predictions"] = predictions_seq
             else:
-                object_dict["predictions"] = predictions_seq[0]
+                object_dict["predictions"] = darts.utils.utils.seq2series(predictions_seq[0])
 
             if OmegaConf.select(cfg.eval, "predictions.return.data"):
                 object_dict["predictions_data"] = prediction_data_seq

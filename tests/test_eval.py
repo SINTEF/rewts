@@ -116,7 +116,7 @@ def test_eval_plot(cfg_eval, get_trained_model_nontorch):
     assert len(eval_objects.get("figs", [])) > 0
 
 
-@pytest.mark.parametrize("fh_stride", [(1, 1), (3, 1), (1, 5), (2, 5)])
+@pytest.mark.parametrize("fh_stride", [(5, 5), (1, 1), (3, 1), (1, 5), (2, 5)])
 def test_eval_stride(cfg_eval, get_trained_model_nontorch, fh_stride):
     train_metric_dict, train_objects = get_trained_model_nontorch
     model_dir = Path(train_objects["cfg"].paths.output_dir)
@@ -185,3 +185,6 @@ def test_eval_ensemble(cfg_eval, get_trained_model_nontorch):
     loaded_weights = np.load(path_to_weights, allow_pickle=True)
     assert compare_weights(loaded_weights, object_dict["model"]._weights_history)
     GlobalHydra.instance().clear()
+
+
+# TODO: test eval.kwargs.start argument

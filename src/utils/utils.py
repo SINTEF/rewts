@@ -253,7 +253,8 @@ def log_hyperparameters(object_dict: dict) -> None:
         "chunk_idx_start",
         "chunk_idx",
     ]
-    hparams["experiment"] = {k: cfg.get(k) for k in experiment_kwargs if k in cfg}
+    hparams["chunk_experiment"] = {k: cfg.get(k) for k in experiment_kwargs if k in cfg}
+    hparams["run_dir"] = OmegaConf.select(cfg, "paths.output_dir")
 
     if hasattr(getattr(model, "model", None), "parameters"):
         hparams["model/params/total"] = sum(p.numel() for p in model.model.parameters())
