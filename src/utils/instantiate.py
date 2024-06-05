@@ -49,14 +49,12 @@ def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
 
     for _, lg_conf in logger_cfg.items():
         if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
-            try:
-                log.info(f"Instantiating logger <{lg_conf._target_}>")
-                logger.append(hydra.utils.instantiate(lg_conf))
-            except mlflow.exceptions.MlflowException:
-                # There is a race condition to create the experiment between parallel jobs
-                time.sleep(np.random.uniform(0.25, 1))
-                logger.append(hydra.utils.instantiate(lg_conf))
-
+            if lg_conf._target_ == "pytorch_lightning.loggers.mlflow.MLFlowLogger" and not OmegaConf.select(lg_conf, "tracking_uri", default="file:").startswith("file:"):
+                db_path = ":".join(lg_conf["tracking_uri"].split(":")[1:])
+                if not os.path.exists(os.path.dirname(db_path)):
+                    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            log.info(f"Instantiating logger <{lg_conf._target_}>")
+            logger.append(hydra.utils.instantiate(lg_conf))
     return logger
 
 
@@ -139,19 +137,28 @@ def instantiate_saved_objects(cfg: DictConfig):
             # data provided to ensemble model must be non-transformed, since each model has its own pipeline.
             # thus, have to make sure that the load function does not overwrite the pipeline with the loaded one.
             # If datamodule originally has a MissingValuesFiller, we keep that to avoid nans in ensemble weight fitting.
-            processing_pipeline = None
+            ensemble_pipeline = None
             if datamodule.hparams.processing_pipeline is not None:
-                for t_i, transformer in enumerate(
-                    getattr(datamodule.hparams.processing_pipeline, "_transformers", [])
-                ):
-                    if transformer.name == "MissingValuesFiller":
-                        processing_pipeline = darts.dataprocessing.Pipeline(
-                            [transformer], copy=True
-                        )
-                        processing_pipeline._fit_called = True
-                        break
-            datamodule.hparams.processing_pipeline = processing_pipeline
-            datamodule.setup("fit")  # , load_dir=os.path.join(cfg.model_dir, "0", "datamodule"))
+                original_pipeline = src.datamodules.utils.ensure_pipeline_per_component(
+                    datamodule.hparams.processing_pipeline, datamodule.hparams.data_variables
+                )
+                transformers = {
+                    component: getattr(pipeline, "_transformers", [])
+                    for component, pipeline in original_pipeline.items()
+                }
+                ensemble_pipeline = {component: None for component in original_pipeline}
+
+                for component, component_transformers in transformers.items():
+                    for transformer in component_transformers:
+                        if transformer.name == "MissingValuesFiller":
+                            ensemble_pipeline[component] = darts.dataprocessing.Pipeline(
+                                [transformer], copy=True
+                            )
+                            ensemble_pipeline[component]._fit_called = True
+                            break
+                datamodule.hparams.processing_pipeline = ensemble_pipeline
+
+            datamodule.setup("fit")
 
             log.info(f"Instantiating ensemble model: {cfg.ensemble._target_}")
             models = []
@@ -167,7 +174,9 @@ def instantiate_saved_objects(cfg: DictConfig):
             model = hydra.utils.instantiate(
                 cfg.ensemble, models, data_pipelines=data_pipelines, datamodule=datamodule
             )
-            datamodule.hparams.processing_pipeline = processing_pipeline
+
+            # finally, overwrite the loaded ones with the pipeline we possibly made above
+            datamodule.hparams.processing_pipeline = ensemble_pipeline
         else:
             datamodule.setup("fit", load_dir=os.path.join(cfg.model_dir, "datamodule"))
 

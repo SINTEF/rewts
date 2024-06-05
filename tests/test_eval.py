@@ -39,10 +39,9 @@ def run_eval_default_tests(cfg, train_func):
     test_metric_dict, eval_objects = evaluate(cfg)
 
     # TODO: perhaps try manipulating the train split to ensure it still works
-    assert (
-        train_objects["datamodule"].data_test["target"]
-        == eval_objects["datamodule"].data_test["target"]
-    )
+    assert train_objects["datamodule"].get_data(["target"], main_split="test") == eval_objects[
+        "datamodule"
+    ].get_data(["target"], main_split="test")
 
     metric_name = "mse"
     assert test_metric_dict[f"test_{metric_name}"] > 0.0

@@ -1,6 +1,6 @@
 # --------- darts --------- #
 statsforecast==1.4.0 # newer statsforecast version is not compatible with darts
-darts==0.28.0
+darts==0.29.0
 pandas>=1.5.0
 
 # --------- hydra --------- #
@@ -34,3 +34,4 @@ pytest              # tests
 # sh                # for running bash commands in some tests (linux/macos only)
 notebook            # jupyter notebook
 notifiers           # notifications
+ipywidgets          # for TDQM in jupyter notebooks

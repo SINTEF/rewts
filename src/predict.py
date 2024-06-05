@@ -80,7 +80,10 @@ def process_predict_index(
             0 <= predict_index <= 1
         ), "Prediction indices with float-values must be between 0 (first predictable sample) and 1 (last predictable sample)."
         new_max = int(len(data["series"]) - 1)
-        new_min = max(get_extreme_lag("min_target_lag") * -1, 1)
+        if get_extreme_lag("min_target_lag") is not None:
+            new_min = max(get_extreme_lag("min_target_lag") * -1, 0)
+        else:
+            new_min = 0
         if retrain:
             new_min = max(new_min, model.min_train_series_length)
         if data.get("future_covariates") is not None:
@@ -167,7 +170,9 @@ def run(
     )
     if datamodule.num_series_for_split(cfg.predict.split) > 1:
         predict_split_data = {
-            k: v[cfg.predict.get("series_index", 0)] for k, v in predict_split_data.items()
+            k: v[cfg.predict.get("series_index", 0)]
+            for k, v in predict_split_data.items()
+            if v is not None
         }
 
     figs = []
@@ -243,10 +248,15 @@ def run(
             target_prediction_intersection = predict_split_data["series"].slice_intersect(
                 prediction
             )
-            for m_i, m in enumerate(metric_funcs):
-                metric_dict[metric_names[m_i]].append(
-                    m(target_prediction_intersection, prediction)
-                )
+            if len(target_prediction_intersection) == 0:
+                log.info("Prediction has no overlap with existing data, cannot compute metrics.")
+                for m_i, m in enumerate(metric_funcs):
+                    metric_dict[metric_names[m_i]].append(np.nan)
+            else:
+                for m_i, m in enumerate(metric_funcs):
+                    metric_dict[metric_names[m_i]].append(
+                        m(target_prediction_intersection, prediction)
+                    )
 
         fig_title = f"Prediction for {cfg.predict.split} dataset at time {prediction.start_time()}"
 

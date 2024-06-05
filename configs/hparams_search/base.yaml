@@ -85,7 +85,7 @@ hydra:
     # storage URL to persist optimization results
     # for example, you can use SQLite if you set 'sqlite:///example.db'
     # not possible to set to hydra.output_dir because db is created before output_dir
-    storage: "sqlite:////${paths.root_dir}/logs/optuna/hyperopt.db"
+    storage: "sqlite:///${paths.log_dir}optuna/hyperopt.db"
 
     # name of the study to persist optimization results
     study_name: ???

@@ -5,4 +5,4 @@ source "$SCRIPT_DIR"/common.sh
 
 cd "$SCRIPT_DIR"/../logs/mlflow || { echo "Failed to change directory."; exit 1; }
 
-run_with_conda "mlflow ui"
+run_with_conda "mlflow ui --backend-store-uri sqlite:///mlruns.db"

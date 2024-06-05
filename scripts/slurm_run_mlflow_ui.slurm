@@ -8,4 +8,4 @@
 
 cd logs/mlflow || { echo "Failed to change directory."; exit 1; }
 
-mlflow ui
+mlflow ui --backend-store-uri sqlite:///mlruns.db

@@ -7,7 +7,7 @@ model:
   _target_: ???
 
   model_name: null # TODO: not relevant?
-  input_chunk_length: 30
+  input_chunk_length: 10
   output_chunk_length: 5
   loss_fn:
     _target_: torch.nn.MSELoss

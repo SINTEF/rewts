@@ -5,7 +5,7 @@ import math
 import os
 from typing import Dict, List, Optional, Union
 
-import darts.models.forecasting.torch_forecasting_model
+import darts.models.forecasting
 import hydra
 import numpy as np
 from omegaconf import DictConfig, OmegaConf, open_dict
@@ -21,7 +21,7 @@ def _get_model_class(
 ):
     if isinstance(model_or_cfg, DictConfig):
         model_target = OmegaConf.select(model_or_cfg, "model._target_")
-        if model_target is None:
+        if model_target is None or model_target == "hydra.utils.get_class":
             model_target = OmegaConf.select(model_or_cfg, "_target_")
             if model_target is None:
                 raise ValueError(
@@ -85,6 +85,18 @@ def is_transferable_model(
         model_class,
         darts.models.forecasting.forecasting_model.TransferableFutureCovariatesLocalForecastingModel,
     )
+
+
+def is_regression_model(
+    model_or_cfg: Union[darts.models.forecasting.forecasting_model.ForecastingModel, DictConfig]
+) -> bool:
+    """Check if a model (model instance, or model config) is a RegressionModel.
+
+    :param model_or_cfg: Model instance or config to be instantiated.
+    :return: Whether model is a torch model.
+    """
+    model_class = _get_model_class(model_or_cfg)
+    return issubclass(model_class, darts.models.forecasting.regression_model.RegressionModel)
 
 
 def is_rewts_model(

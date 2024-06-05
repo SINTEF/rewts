@@ -265,6 +265,10 @@ def log_hyperparameters(object_dict: dict) -> None:
             p.numel() for p in model.model.parameters() if not p.requires_grad
         )
 
+    if OmegaConf.select(cfg, "log_hyperparameters_custom") is not None:
+        for dot_path in OmegaConf.select(cfg, "log_hyperparameters_custom"):
+            hparams[dot_path] = OmegaConf.select(cfg, dot_path)
+
     for lg in logger:
         lg.log_hyperparams(hparams)
 
@@ -709,7 +713,7 @@ def get_inverse_transform_data_func(
         return None
 
     return lambda ts: datamodule.inverse_transform_data(
-        darts.utils.utils.seq2series(ts), partial=partial_ok
+        darts.utils.ts_utils.seq2series(ts), partial=partial_ok
     )
 
 

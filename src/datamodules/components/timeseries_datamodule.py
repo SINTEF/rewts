@@ -1,3 +1,4 @@
+import copy
 import itertools
 import os
 import pickle
@@ -6,12 +7,14 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import darts.dataprocessing.pipeline
 import darts.timeseries
 import darts.utils.model_selection
+import matplotlib.patches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
 
 import src.datamodules.components.dataloaders as dataloaders
+import src.datamodules.utils
 import src.utils.plotting
 from src.utils import pylogger, rich_utils
 
@@ -26,6 +29,8 @@ _VALID_RESAMPLE_KEYS = ("method", "freq")
 _VALID_SPLIT_NAMES = ("train", "val", "test", "predict")
 _VALID_INDEX_TYPES = (pd.RangeIndex, pd.DatetimeIndex)
 _PLOT_SEPARATE_MAX = 3
+_PLOT_SPLIT_COLOR = {"train": "blue", "val": "red", "test": "green"}
+_PLOT_COMPONENT_COLORMAP = plt.cm.tab10.colors
 
 
 def _assert_compatible_with_index(
@@ -164,23 +169,19 @@ class TimeSeriesDataModule(LightningDataModule):
         :return: None
         """
         assert self.data is not None, "You need to set your dataset to the self.data attribute"
-        _assert_valid_type_and_index(self.data)
         assert isinstance(
             self.hparams.freq, _SUPPORTED_FREQ_TYPES
         ), f"The supported types for freq are {_SUPPORTED_FREQ_TYPES}, you have {type(self.hparams.freq)}"
 
         if load_dir is not None:
             self.load_state(load_dir)
-        else:
-            if self.hparams.processing_pipeline is not None:
-                assert (
-                    self.hparams.train_val_test_split is None
-                    or "train" in self.hparams.train_val_test_split
-                ), "A training set is not configured, and no state for the data processing_pipeline was provided."
 
         all_data_variables = []
         for dv_name, dvs in self.hparams.data_variables.items():
-            if dv_name != "actual_anomalies" and dvs is not None:
+            if dvs is not None:
+                if len(dvs) == 0:
+                    self.hparams.data_variables[dv_name] = None
+                    continue
                 if isinstance(dvs, str):
                     dvs = [dvs]
                 all_data_variables.extend(dvs)
@@ -199,81 +200,75 @@ class TimeSeriesDataModule(LightningDataModule):
                 f"data_variables must have unique entries. The variable(s) {dupes} appears in multiple entries."
             )
 
-        if self.hparams.crop_data_range is not None:
-            self.data = self.crop_dataset_range(self.data, self.hparams.crop_data_range)
+        assert (
+            self.hparams.data_variables.get("target", []) is not None
+            and len(self.hparams.data_variables.get("target", [])) > 0
+        ), "You need to provide a target variable"
+        if not isinstance(self.data, dict):
+            self.data = {0: self.data}
 
-        if self.hparams.data_variables.get("actual_anomalies", None) is not None:
-            if isinstance(self.data, pd.DataFrame):
-                self.data.columns.name = None  # fix potential bug with Timeseries.from_dataset
-                self.labels = darts.timeseries.TimeSeries.from_dataframe(
-                    self.data,
-                    value_cols=self.hparams.data_variables["actual_anomalies"],
-                    freq=self.hparams.freq,
+        for dataset_name in self.data:
+            _assert_valid_type_and_index(self.data[dataset_name])
+
+            if self.hparams.crop_data_range is not None:
+                self.data[dataset_name] = self.crop_dataset_range(
+                    self.data[dataset_name], self.hparams.crop_data_range
                 )
-            elif isinstance(self.data, darts.timeseries.TimeSeries):
-                raise NotImplementedError
-                # self.labels = self.data["actual_anomalies"]
-            else:
-                raise ValueError
-            self.labels = self.labels.astype(
-                np.dtype(getattr(np, f"float{self.hparams.precision}"))
+
+            if self.hparams.resample is not None:
+                # TODO: should this logic be somewhere else?
+                required_keys = list(_VALID_RESAMPLE_KEYS)
+                for key, value in self.hparams.resample.items():
+                    if key not in _VALID_RESAMPLE_KEYS:
+                        log.info(
+                            f"Unrecognized argument {key} given for resample. The argument is ignored."
+                        )
+                    elif key in required_keys:
+                        required_keys.remove(key)
+                assert (
+                    len(required_keys) == 0
+                ), f"The following required keys are missing from resample {required_keys}"
+
+                self.data[dataset_name] = self.resample_dataset(
+                    self.data[dataset_name], **self.hparams.resample
+                )
+
+            if isinstance(self.data[dataset_name], pd.DataFrame):
+                self.data[dataset_name].columns.name = (
+                    None  # fix potential bug with Timeseries.from_dataset
+                )
+                self.data[dataset_name] = darts.timeseries.TimeSeries.from_dataframe(
+                    self.data[dataset_name],
+                    value_cols=all_data_variables,
+                    fill_missing_dates=True,
+                    freq=self.hparams.freq,
+                )  # TODO: add support for other arguments
+
+            self.data[dataset_name] = self.set_dataset_precision(
+                self.data[dataset_name], precision=self.hparams.precision
             )
-            self.labels = darts.utils.missing_values.fill_missing_values(
-                self.labels, fill=0.0
-            )  # make configurable fill_value?
-        # TODO: component_wise
-        else:
-            self.labels = None  # TODO: more integrated handling of labels ( big problem is that it should not go through pipeline, at least not all stages).
-
-        if self.hparams.resample is not None:
-            # TODO: should this logic be somewhere else?
-            required_keys = list(_VALID_RESAMPLE_KEYS)
-            for key, value in self.hparams.resample.items():
-                if key not in _VALID_RESAMPLE_KEYS:
-                    log.info(
-                        f"Unrecognized argument {key} given for resample. The argument is ignored."
-                    )
-                elif key in required_keys:
-                    required_keys.remove(key)
-            assert (
-                len(required_keys) == 0
-            ), f"The following required keys are missing from resample {required_keys}"
-
-            self.data = self.resample_dataset(self.data, **self.hparams.resample)
-
-        if isinstance(self.data, pd.DataFrame):
-            self.data.columns.name = None  # fix potential bug with Timeseries.from_dataset
-            self.data = darts.timeseries.TimeSeries.from_dataframe(
-                self.data,
-                value_cols=all_data_variables,
-                fill_missing_dates=True,
-                freq=self.hparams.freq,
-            )  # TODO: add support for other arguments
-
-        self.data = self.set_dataset_precision(self.data, precision=self.hparams.precision)
 
         self.hparams.train_val_test_split = self.process_train_val_test_split(
             self.data, self.hparams.train_val_test_split
         )
 
-        for split_name, split_data in self.split_dataset(
-            self.data, self.hparams.train_val_test_split
-        ).items():
-            setattr(self, f"data_{split_name}", split_data)
-
         for split_name in ["train", "val", "test"]:
-            split_data = getattr(self, f"data_{split_name}")
-            if split_data is None:
+            if not self.has_split_data(split_name):
                 continue
 
             if self.hparams.processing_pipeline is not None:
-                if split_name == "train" and not getattr(
-                    self.hparams.processing_pipeline, "_fit_called", False
-                ):
-                    split_data = self.transform_data(split_data, fit_pipeline=True)
+                self.hparams.processing_pipeline = (
+                    src.datamodules.utils.ensure_pipeline_per_component(
+                        self.hparams.processing_pipeline, self.hparams.data_variables
+                    )
+                )
+                if split_name == "train":
+                    self.fit_processing_pipeline(self._get_split_data_raw("train"))
                 else:
-                    if not getattr(self.hparams.processing_pipeline, "_fit_called", False):
-                        if self.data_train is None:
+                    if not src.datamodules.utils.pipeline_is_fitted(
+                        self.hparams.processing_pipeline
+                    ):
+                        if not self.has_split_data("train"):
                             raise RuntimeError(
                                 "A pipeline has been configured, but no training set has been provided on which it can be fitted. Either pass load_dir containing the state of a pipeline or configure a training set."
                             )
@@ -281,49 +276,25 @@ class TimeSeriesDataModule(LightningDataModule):
                             raise RuntimeError(
                                 "processing_pipeline.transform was called before it was fitted. Ensure datamodule configuration is correct. Contact developer as this is an unexpected error."
                             )
-                    split_data = self.transform_data(split_data)
 
-            split_data_seq = darts.utils.utils.series2seq(split_data)
-            split_series = {
-                k: [] if self.hparams.data_variables.get(k, None) else None
-                for k in ["target", "past_covariates", "future_covariates", "actual_anomalies"]
-            }
-
-            for split_data in split_data_seq:
-                if self.labels is not None:
-                    split_labels = self.labels.slice_intersect(split_data)
-                else:
-                    split_labels = None
-
-                if self.hparams.check_for_nan:
-                    if np.any(np.isnan(split_data.all_values())):
-                        raise ValueError(
-                            f"The {split_name} dataset contains nan-values and the check_for_nan attribute is set to True. Please check if data-processing pipeline is configured correctly."
-                        )
-                    if split_labels is not None and np.any(np.isnan(split_labels.all_values())):
-                        raise ValueError(
-                            f"The labels for {split_name} dataset contains nan-values and the check_for_nan attribute is set to True. Please check if data-processing pipeline is configured correctly."
-                        )
-
-                for series_name in ["target", "past_covariates", "future_covariates"]:
-                    if self.hparams.data_variables.get(series_name, None) is not None:
-                        split_series[series_name].append(
-                            split_data.drop_columns(
-                                [
-                                    dv
-                                    for dv in all_data_variables
-                                    if dv not in self.hparams.data_variables[series_name]
-                                ]
+            if self.hparams.check_for_nan:
+                split_data = self.get_split_data(
+                    split_name, transform=self.hparams.processing_pipeline is not None
+                )
+                for covariate_type in split_data:
+                    if split_data[covariate_type] is None:
+                        continue
+                    for series in darts.utils.ts_utils.series2seq(split_data[covariate_type]):
+                        if np.any(np.isnan(series.all_values())):
+                            raise ValueError(
+                                f"The {split_name} dataset contains nan-values in {covariate_type} and the check_for_nan attribute is set to True. Please check if data-processing pipeline is configured correctly."
                             )
-                        )
-
-                if split_labels is not None:
-                    split_series["actual_anomalies"].append(split_labels)
-
-            setattr(self, f"data_{split_name}", split_series)
 
     def get_data(
-        self, data_kwargs: List[str], main_split: str = "train"
+        self,
+        data_kwargs: List[str],
+        main_split: str = "train",
+        transform: bool = True,
     ) -> Dict[str, darts.timeseries.TimeSeries]:
         """Get dictionary of training and validation data (if defined) formatted with the names
         expected by the darts model methods such as fit, predict, historical_forecast, backtest,
@@ -336,6 +307,7 @@ class TimeSeriesDataModule(LightningDataModule):
             prefix is given, the data is returned for the main split.
         :param main_split: String specifying which split should be used as the main split. The main
             split is used for all data that is not prefixed with "val_".
+        :param transform: Whether the data should be transformed using processing_pipeline or not.
         :return: Dictionary of data formatted with the names expected by the model.fit method.
         """
         assert self.has_split_data(main_split), f"No data has been set for split {main_split}"
@@ -344,23 +316,25 @@ class TimeSeriesDataModule(LightningDataModule):
             "series": "target",
             "past_covariates": "past_covariates",
             "future_covariates": "future_covariates",  # TODO: static covariates
-            "actual_anomalies": "actual_anomalies",
         }
+        main_split_data = self.get_split_data(main_split, transform=transform)
+        if any(kwarg.startswith("val_") for kwarg in data_kwargs):
+            val_split_data = self.get_split_data("val", transform=transform)
+
         res = {}
         for kwarg in data_kwargs:
             if kwarg.startswith("val_"):  # TODO: can there be others, e.g. test?
+                if not self.has_split_data("val"):
+                    continue
                 kwarg_name_split = kwarg.split("_")
                 kwarg_split = kwarg_name_split[0]
                 kwarg = "_".join(kwarg_name_split[1:])
+                kwarg_split_data = val_split_data
             else:
                 kwarg_split = main_split
+                kwarg_split_data = main_split_data
             if kwarg in data_translator:
-                if data_translator[kwarg] in getattr(self, f"data_{kwarg_split}"):
-                    kwarg_value = darts.utils.utils.seq2series(
-                        getattr(self, f"data_{kwarg_split}")[data_translator[kwarg]]
-                    )
-                else:
-                    kwarg_value = None
+                kwarg_value = kwarg_split_data.get(data_translator[kwarg])
                 if kwarg_split == main_split:
                     res[kwarg] = kwarg_value
                 else:
@@ -413,38 +387,6 @@ class TimeSeriesDataModule(LightningDataModule):
         else:
             raise NotImplementedError
 
-    def train_dataloader(self):  # TODO: remove these
-        return self.data_train.to_dataloader(
-            train=True,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-        )
-
-    def val_dataloader(self):
-        return self.data_val.to_dataloader(
-            train=False,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-        )
-
-    def test_dataloader(self):
-        return self.data_test.to_dataloader(
-            train=False,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-        )
-
-    def predict_dataloader(self):
-        return getattr(self, f"data_{self.hparams.predict_split}").to_dataloader(
-            train=False,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-        )
-
     def teardown(self, stage: Optional[str] = None):
         """Clean up after fit or test."""
         pass
@@ -460,117 +402,161 @@ class TimeSeriesDataModule(LightningDataModule):
     def plot_data(
         self,
         split: Optional[str] = None,
+        datasets: Optional[Union[str, Sequence[str]]] = None,
         slice: Optional[
             Tuple[Union[float, int, pd.Timestamp], Union[float, int, pd.Timestamp]]
         ] = None,  # TODO: convert for user?
-        predictions: Optional[darts.timeseries.TimeSeries] = None,
+        separate_splits: bool = False,
         separate_components: Optional[bool] = None,
+        transformed: bool = False,
         presenter: Any = None,
         **presenter_kwargs,
     ) -> Union[List[plt.Figure], None]:  # TODO: consider rewriting to using TSD to save space
         """Plots the dataset splits. If no split is specified, all splits are plotted.
 
         :param split: The split to plot. If None, all splits are plotted.
+        :param datasets: Name of dataset(s) to be plotted, i.e. entries in the self.data
+            dictionary. If none, all datasets will be plotted.
         :param slice: A tuple of (start, end) to slice the data before plotting.
-        :param predictions: A TimeSeries containing predictions to plot.
+        :param separate_splits: Whether to plot splits in separate figures, or in the same figure
+            with colored background to indicate different splits.
         :param separate_components: Whether to plot the components of the split separately. If
             None, components will be plotted separately if there are _PLOT_SEPARATE_MAX or fewer
             components, or together otherwise.
+        :param transformed: Whether to plot the transformed data or non-transformed data.
         :param presenter: A presenter class to use for plotting. If None, the default presenter is
             used.
         :param presenter_kwargs: Keyword arguments to pass to the presenter.
         :return: A list of figures if presenter is None, otherwise None
         """
-        if predictions is not None:
-            raise NotImplementedError
         if slice is not None:
-            _assert_compatible_with_index(slice[0], self.data.time_index)
-        if split is not None:
-            return self._plot_data_split(
-                split=split,
-                slice=slice,
-                predictions=predictions,
-                separate_components=separate_components,
-                presenter=presenter,
-                **presenter_kwargs,
-            )
+            raise NotImplementedError  # get some blank plots
+            _assert_compatible_with_index(slice[0], next(iter(self.data.values())).time_index)
+
+        # TODO: should also allow for splitting across series?
+
+        if isinstance(datasets, str):
+            datasets = [datasets]
+
+        if split is None:
+            plot_splits = ["train", "val", "test"]
         else:
-            figs = []
-            for split in ["train", "val", "test"]:
-                if self.has_split_data(split):
-                    figs.extend(
-                        self._plot_data_split(
-                            split=split,
-                            slice=slice,
-                            predictions=predictions,
-                            separate_components=separate_components,
-                            presenter=presenter,
-                            **presenter_kwargs,
-                        )
-                    )  # TODO: what about predictions now? Dictionary?
+            plot_splits = [split]
 
-            return figs
+        train_patch = matplotlib.patches.Patch(
+            color=_PLOT_SPLIT_COLOR["train"], label="Train", alpha=0.25
+        )
+        val_patch = matplotlib.patches.Patch(
+            color=_PLOT_SPLIT_COLOR["val"], label="Val", alpha=0.25
+        )
+        test_patch = matplotlib.patches.Patch(
+            color=_PLOT_SPLIT_COLOR["test"], label="Test", alpha=0.25
+        )
 
-    def _plot_data_split(
-        self,
-        split: str,
-        slice: Optional[
-            Tuple[Union[float, int, pd.Timestamp], Union[float, int, pd.Timestamp]]
-        ] = None,
-        predictions: Optional[darts.timeseries.TimeSeries] = None,
-        separate_components: Optional[bool] = None,
-        presenter: Any = "savefig",
-        **presenter_kwargs,
-    ) -> Union[List[plt.Figure], None]:
-        """Plot a single split of the dataset.
-
-        :param split: The split to plot.
-        :param slice: A tuple of (start, end) to slice the data before plotting.
-        :param predictions: A TimeSeries containing predictions to plot.
-        :param separate_components: Whether to plot the components of the split separately. If
-            None, components will be plotted separately if there are _PLOT_SEPARATE_MAX or fewer
-            components, or together otherwise.
-        :param presenter: A presenter class to use for plotting. If None, the default presenter is
-            used.
-        :param presenter_kwargs: Keyword arguments to pass to the presenter.
-        :return: A list of figures if presenter is None, otherwise None
-        """
-        split_series = getattr(self, f"data_{split}")
-        if split_series is None:
-            log.info(f"No data to plot for split {split}")
-            return None
         figs = []
-        for series_name, serieses in split_series.items():  # TODO: sequences of series?
-            if serieses is not None:
-                for series_i, series in enumerate(serieses):
-                    title_prefix = f"dataset {split} {series_name}"
-                    if len(serieses) > 1:
-                        title_prefix += f" {series_i}"
-                    if slice is not None:
-                        if all(slice[i] not in series.time_index for i in range(2)):
-                            continue
+        for dataset_name in map(str, self.data):
+            if datasets is not None and dataset_name not in datasets:
+                continue
+
+            component_colors = {}
+            split_data = {
+                s: self.get_split_data(s, transform=transformed, datasets=dataset_name)
+                for s in plot_splits
+            }
+
+            color_cycles = {}
+
+            for data_type in ["target", "past_covariates", "future_covariates"]:
+                data_figures = {}
+                labeled_components = set()
+
+                for plot_split, split_series in split_data.items():
+                    if split_series is None or split_series.get(data_type) is None:
+                        continue
+
+                    if separate_splits:
+                        labeled_components = set()
+
+                    if len(self.data) == 1 and dataset_name == "0":
+                        title_prefix = ""
+                    else:
+                        title_prefix = f"Dataset {dataset_name} "
+
+                    if separate_splits:
+                        title_prefix = f"{title_prefix}{plot_split} "
+
+                    series_seq = darts.utils.ts_utils.series2seq(split_series[data_type])
+
+                    separate_series_components = separate_components or (
+                        separate_components is None
+                        and series_seq[0].n_components <= _PLOT_SEPARATE_MAX
+                    )
+
+                    if len(data_figures) == 0 or separate_splits:
+                        # Initialize a figure for each component if separate_components is True
+                        if separate_series_components:
+                            for component in series_seq[0].components:
+                                fig, ax = src.utils.plotting.create_figure(1, 1, figsize=(10, 5))
+                                ax = ax[0]
+                                data_figures[component] = (fig, ax)
                         else:
-                            series = series.slice(*slice)
-                    if separate_components is None:
-                        separate_series_components = len(series.components) <= _PLOT_SEPARATE_MAX
-                    else:
-                        separate_series_components = separate_components
-                    if separate_series_components:
-                        for component_name in series.components.values:
-                            figs.append(
-                                src.utils.plotting.plot_darts_timeseries(
-                                    series[component_name],
-                                    title=title_prefix + f" {component_name}",
-                                    presenter=presenter,
-                                    **presenter_kwargs,
+                            fig, ax = src.utils.plotting.create_figure(1, 1, figsize=(10, 5))
+                            ax = ax[0]
+                            data_figures["combined"] = (fig, ax)
+
+                    # Plot each series within the split
+                    for series in series_seq:
+                        if slice:
+                            if all(slice[i] not in series.time_index for i in range(2)):
+                                continue
+                            else:
+                                series = series.slice(*slice)
+
+                        for component_i, component in enumerate(series.components):
+                            # Assign consistent colors
+                            if component in data_figures:
+                                ax = data_figures[component][1]
+                            else:
+                                ax = data_figures["combined"][1]
+
+                            if ax not in color_cycles:
+                                color_cycles[ax] = iter(_PLOT_COMPONENT_COLORMAP)
+
+                            if component not in component_colors:
+                                component_colors[component] = next(color_cycles[ax])
+                            color = component_colors[component]
+
+                            # Plot with label only if it's the first time for this component in this axis
+                            label = f"{component}" if component not in labeled_components else None
+                            series.univariate_component(component).plot(
+                                ax=ax, label=label, color=color
+                            )
+                            ax.set_title(f"{title_prefix}{data_type}")
+                            labeled_components.add(component)
+
+                            # Background color for splits, only
+                            if not separate_splits and (
+                                separate_series_components or component_i == 0
+                            ):
+                                ax.axvspan(
+                                    series.time_index[0],
+                                    series.time_index[-1],
+                                    color=_PLOT_SPLIT_COLOR[plot_split],
+                                    alpha=0.1,
                                 )
-                            )
-                    else:
-                        figs.append(
-                            src.utils.plotting.plot_darts_timeseries(
-                                series, title=title_prefix, presenter=presenter, **presenter_kwargs
-                            )
-                        )
+
+                    for component, (fig, ax) in data_figures.items():
+                        ax.legend()
+                        if not separate_splits:
+                            handles, labels = ax.get_legend_handles_labels()
+                            handles.extend([train_patch, val_patch, test_patch])
+                            ax.legend(handles=handles, labels=labels + ["Train", "Val", "Test"])
+                        figs.append(fig)
+
+        for fig_i, fig in enumerate(figs):
+            figs[fig_i] = src.utils.plotting.present_figure(
+                fig, presenter=presenter, **presenter_kwargs
+            )
 
         return figs
 
@@ -605,7 +591,7 @@ class TimeSeriesDataModule(LightningDataModule):
                     "all" if series_to_call == "all" else series_to_call[split_name]
                 )
                 res[split_name] = {}
-                for series_type, serieses in getattr(self, f"data_{split_name}").items():
+                for series_type, serieses in self.get_split_data(split_name).items():
                     if serieses is not None and (
                         split_series_to_call == "all" or series_type in split_series_to_call
                     ):
@@ -665,7 +651,7 @@ class TimeSeriesDataModule(LightningDataModule):
                 res[split_name] = {}
 
                 # Get all series types for the current split
-                split_data = getattr(self, f"data_{split_name}")
+                split_data = self.get_split_data(split_name)
                 series_types = [st for st in split_data.keys() if st in included_series_types]
 
                 # Generate all unique pairs of series types
@@ -719,33 +705,51 @@ class TimeSeriesDataModule(LightningDataModule):
 
         return res
 
-    def get_split_range(
-        self, split: str
-    ) -> Union[Tuple[Union[int, pd.Timestamp], Union[int, pd.Timestamp]], None]:  # TODO: fix seq
-        """Returns the range of a data split, i.e. a tuple with (start_index, stop_index). If data
-        has DatetimeIndex this function returns pd.Timestamp, if data has RangeIndex this function
-        returns int-indexes, if the split has no data, this function returns None.
+    def fit_processing_pipeline(
+        self,
+        dataset: Union[darts.TimeSeries, Sequence[darts.TimeSeries]],
+        pipeline: Optional[Dict[str, darts.dataprocessing.Pipeline]] = None,
+    ) -> None:
+        """Fit a processing (data transformation) pipeline on the given dataset(s).
 
-        :param split: which data split to get range for. One of ["train", "val", "test", "predict"]
-        :return: range of data split.
+        If no pipeline is given, the pipeline set to hparams.processing_pipeline will be used.
+        Dataset can either be a single darts.TimeSeries or a sequence of darts.TimeSeries.
+        :param dataset: Dataset(s) to fit the pipeline on.
+        :param pipeline: Pipeline to fit.
+        :return:
         """
-        assert (
-            split in _VALID_SPLIT_NAMES
-        ), f"split must be one of {_VALID_SPLIT_NAMES}, you have split."
-        if split == "predict":
-            split = self.hparams.predict_split
+        if pipeline is None:
+            if self.hparams.processing_pipeline is None:
+                return ValueError(
+                    "You either have to specify a processing pipeline as argument or have set a pipeline to self.hparams.processing_pipeline."
+                )
 
-        split_data = getattr(self, f"data_{split}")
-        if split_data is None:
-            return None
-        else:
-            split_data = split_data["target"][0]  # TODO: what to do with multiple sets?
-            return split_data.start_time(), split_data.end_time()
+            pipeline = self.hparams.processing_pipeline
+
+        all_data_variables = []
+        for dv_name, dvs in self.hparams.data_variables.items():
+            if dvs is not None:
+                if isinstance(dvs, str):
+                    dvs = [dvs]
+                all_data_variables.extend(dvs)
+
+        if not isinstance(pipeline, dict) or not pipeline.keys() == set(all_data_variables):
+            raise ValueError(
+                "Processing_pipeline must be a dictionary with key data_variables and one pipeline per variable."
+            )
+
+        dataset = darts.utils.ts_utils.series2seq(dataset)
+        for component in pipeline:
+            if pipeline[component] is None:
+                continue
+            component_ds = [ds.univariate_component(component) for ds in dataset]
+            pipeline[component].fit(component_ds)
+            pipeline[component]._fit_called = True
 
     def transform_data(
         self,
         dataset: Union[darts.TimeSeries, Sequence[darts.TimeSeries]],
-        pipeline: Optional[darts.dataprocessing.Pipeline] = None,
+        pipeline: Optional[Dict[str, darts.dataprocessing.Pipeline]] = None,
         fit_pipeline: bool = False,
     ) -> Union[darts.TimeSeries, Sequence[darts.TimeSeries]]:
         """A function to transform a dataset using a darts Pipeline object containing a set of
@@ -770,50 +774,44 @@ class TimeSeriesDataModule(LightningDataModule):
             pipeline = self.hparams.processing_pipeline
 
         if fit_pipeline:
-            pipeline.fit(dataset)
-            pipeline._fit_called = True
-        else:
-            if not getattr(pipeline, "_fit_called", False):
-                log.warning(
-                    "Tried transforming dataset but pipeline has not been fitted. Returning dataset."
+            self.fit_processing_pipeline(dataset=dataset, pipeline=pipeline)
+
+        # Have considered using the component_mask feature of darts transformers as an alternative to fitting pipeline
+        # per component, however, it has two major issues:
+        # 1. component_masks applies to the input series rather than the transformer components, such that the input
+        # must be a superset of the fit data, not subset as we require
+        # 2. Pipelines do not support component masks, such that we would need to operate on the transformers themselves
+
+        datasets = darts.utils.ts_utils.series2seq(dataset)
+        transformed = None
+        for component in datasets[0].components:
+            if component not in pipeline:
+                log.exception(f"The component {component} is not in the transformation pipeline")
+                raise ValueError(
+                    f"The component {component} is not in the transformation pipeline"
                 )
-                return dataset
-
-        datasets = darts.utils.utils.series2seq(dataset)
-
-        transformed = []
-        for dataset in datasets:
-            # TODO: might be wrong if someone passed a pipeline?
-            if not dataset.width == self.data.width or any(
-                dataset.components != self.data.components
-            ):
-                assert set(dataset.components).issubset(
-                    self.data.components
-                ), "transform_data was called with a dataset that includes components that the processing pipeline was not fitted for."
-                dummy_dataset = self.data.slice_intersect(dataset)
-                component_indexes = [
-                    self.data.components.get_loc(comp) for comp in dataset.components
-                ]
-                dummy_dataset_values = dummy_dataset.all_values()
-                dummy_dataset_values[:, component_indexes, :] = dataset.all_values()
-
-                dummy_transformed = pipeline.transform(
-                    dummy_dataset.with_values(dummy_dataset_values)
-                )
-
-                transformed.append(
-                    dataset.with_values(dummy_transformed.all_values()[:, component_indexes, :])
-                )
+            elif pipeline[component] is None:
+                transformed_component = [ds.univariate_component(component) for ds in datasets]
             else:
-                transformed.append(pipeline.transform(dataset))
+                transformed_component = pipeline[component].transform(
+                    [ds.univariate_component(component) for ds in datasets]
+                )
+            if transformed is None:
+                transformed = transformed_component
+            else:
+                transformed = [
+                    transformed[ds_i].stack(transformed_component[ds_i])
+                    for ds_i in range(len(datasets))
+                ]
 
-        return darts.utils.utils.seq2series(transformed)
+        return darts.utils.ts_utils.seq2series(transformed)
 
     def inverse_transform_data(
         self,
         dataset: Union[darts.TimeSeries, Sequence[darts.TimeSeries]],
-        pipeline: Optional[darts.dataprocessing.Pipeline] = None,
+        pipeline: Optional[Dict[str, darts.dataprocessing.Pipeline]] = None,
         partial: bool = False,
+        verify_diff_transformers: bool = True,
     ) -> Union[darts.TimeSeries, Sequence[darts.TimeSeries]]:
         """A function to inverse transform a dataset using a darts Pipeline object containing a set
         of transformers. If all transformers in the pipeline are not invertible, the partial
@@ -834,77 +832,65 @@ class TimeSeriesDataModule(LightningDataModule):
                     "Tried inverse transforming dataset but no pipeline has been configured. Returning dataset."
                 )
                 return dataset
-            elif not getattr(self.hparams.processing_pipeline, "_fit_called", False):
+            pipeline = self.hparams.processing_pipeline
+
+            if not src.datamodules.utils.pipeline_is_fitted(pipeline):
                 log.warning(
                     "Tried inverse transforming dataset but pipeline has not been fitted. Returning dataset."
                 )
                 return dataset
 
-            pipeline = self.hparams.processing_pipeline
-
-        if not partial and not pipeline.invertible():
+        if not partial and not all(p.invertible() for p in pipeline.values()):
             raise ValueError(
                 "Pipeline is not invertible, and the partial argument was not set True."
             )
 
-        diff_transformer_indexes = [
-            t_i
-            for t_i, transformer in enumerate(pipeline._transformers)
-            if isinstance(transformer, darts.dataprocessing.transformers.Diff)
-        ]
-        if len(diff_transformer_indexes) > 0:
-            sum_lags = sum(pipeline._transformers[0]._lags)
-            if len(diff_transformer_indexes) > 1 or diff_transformer_indexes[0] != 0:
-                assert (
-                    pipeline._transformers[diff_transformer_indexes[0]]._fitted_params[0][2]
-                    + sum_lags
-                    * pipeline._transformers[diff_transformer_indexes[0]]._fitted_params[0][3]
-                    == dataset.start_time()
-                ), "A pipeline with a darts.Diff transformer is only invertible if it is the first transformer in the pipeline, or used with data starting at the same time as the data it was fitted with."
-            else:
-                original_dataset = self.data.slice_n_points_before(
-                    dataset.start_time(), sum_lags + 1
+        datasets = darts.utils.ts_utils.series2seq(dataset)
+        transformed = None
+        for component in datasets[0].components:
+            if component not in pipeline:
+                log.exception(f"The component {component} is not in the transformation pipeline")
+                raise ValueError(
+                    f"The component {component} is not in the transformation pipeline"
                 )
-                pipeline._transformers[0].fit(original_dataset)
-
-        datasets = darts.utils.utils.series2seq(dataset)
-
-        transformed = []
-        for dataset in datasets:
-            # TODO: might be wrong if someone passed a pipeline?
-            if not dataset.width == self.data.width or (
-                list(dataset.components.values) != [str(i) for i in range(dataset.width)]
-                and any(dataset.components != self.data.components)
-            ):
-                assert set(dataset.components).issubset(
-                    self.data.components
-                ), "transform_data was called with a dataset that includes components that the processing pipeline was not fitted for."
-                dummy_dataset = self.data.slice_intersect(dataset)
-                component_indexes = [
-                    self.data.components.get_loc(comp) for comp in dataset.components
+            if verify_diff_transformers:
+                diff_transformer_indexes = [
+                    t_i
+                    for t_i, transformer in enumerate(pipeline[component]._transformers)
+                    if isinstance(transformer, darts.dataprocessing.transformers.Diff)
                 ]
-                dummy_dataset_values = dummy_dataset.all_values()
-                dummy_dataset_values[:, component_indexes, :] = dataset.all_values()
-
-                dummy_transformed = pipeline.inverse_transform(
-                    dummy_dataset.with_values(dummy_dataset_values), partial=partial
-                )
-
-                transformed.append(
-                    dataset.with_values(dummy_transformed.all_values()[:, component_indexes, :])
-                )
+                if len(diff_transformer_indexes) > 0:
+                    sum_lags = sum(pipeline[component]._transformers[0]._lags)
+                    assert (
+                        pipeline[component]
+                        ._transformers[diff_transformer_indexes[0]]
+                        ._fitted_params[0][2]
+                        + sum_lags
+                        * pipeline[component]
+                        ._transformers[diff_transformer_indexes[0]]
+                        ._fitted_params[0][3]
+                        == dataset.start_time()
+                    ), "A pipeline with a darts.Diff transformer is only invertible if it is the first transformer in the pipeline, or used with data starting at the same time as the data it was fitted with."
+            transformed_component = pipeline[component].inverse_transform(
+                [ds.univariate_component(component) for ds in datasets], partial=partial
+            )
+            if transformed is None:
+                transformed = transformed_component
             else:
-                transformed.append(pipeline.inverse_transform(dataset, partial=partial))
+                transformed = [
+                    transformed[ds_i].stack(transformed_component[ds_i])
+                    for ds_i in range(len(datasets))
+                ]
 
-        return darts.utils.utils.seq2series(transformed)
+        return darts.utils.ts_utils.seq2series(transformed)
 
     def num_series_for_split(self, split: str) -> Union[int, None]:
         """Convenience function to get the number of series for a given split."""
-        split_data = getattr(self, f"data_{split}")
+        split_data = self.get_split_data(split)
         if split_data is None:
             return None
         else:
-            return len(split_data["target"])
+            return len(darts.utils.ts_utils.series2seq(split_data["target"]))
 
     @staticmethod
     def subset_dataframe_on_index(df, t_s, t_e, variable=None):
@@ -1024,7 +1010,7 @@ class TimeSeriesDataModule(LightningDataModule):
 
     @staticmethod
     def process_train_val_test_split(
-        dataset: darts.TimeSeries,
+        dataset: Dict[Any, darts.TimeSeries],
         train_val_test_split: Union[Dict[str, Union[float, Tuple[str, str]]], None],
     ) -> Union[Dict[str, Tuple[Union[float, int, str], Union[float, int, str]]], None]:
         """Takes in the train_val_test_split dictionary, asserts it has a valid structure, and
@@ -1038,158 +1024,235 @@ class TimeSeriesDataModule(LightningDataModule):
         :param train_val_test_split: The train_val_test_split dictionary to process.
         :return: The processed train_val_test_split dictionary.
         """
+
+        def get_split_indices(_split_values, _dataset):
+            if isinstance(_split_values[0], str):
+                if _split_values[0] == "start":
+                    _split_values[0] = _dataset.start_time()
+                else:
+                    _split_values[0] = pd.Timestamp(_split_values[0])
+                if _split_values[1] == "end":
+                    _split_values[1] = _dataset.end_time()
+                else:
+                    _split_values[1] = pd.Timestamp(_split_values[1])
+
+            if isinstance(_split_values[0], (float, pd.Timestamp)):
+                _split_values = [_dataset.get_index_at_point(sv) for sv in _split_values]
+                if _dataset.has_range_index:
+                    _split_values = [sv + _dataset.start_time() for sv in _split_values]
+            # avoid overlap by making end non-inclusive if next split starts at same point
+            if (
+                split_i < len(split_order) - 1
+                and dataset_splits[split_name][-1] == dataset_splits[split_order[split_i + 1]][0]
+            ):
+                _split_values[-1] -= 1
+            if _dataset.has_datetime_index:
+                _split_values = [_dataset.get_timestamp_at_point(sv) for sv in _split_values]
+
+            return _split_values
+
         if train_val_test_split is None:
             return None
         assert isinstance(train_val_test_split, dict)
-        train_val_test_split = {k: v for k, v in train_val_test_split.items() if v is not None}
-        split_order = list(train_val_test_split)
-        assert all(
-            [so in ["train", "test", "val"] for so in split_order]
-        ), "Only the entries [train, val, test] are allowed in train_val_test_split"
-        split_values = list(train_val_test_split.values())
 
-        # check that all split values are the same type
-        assert (
-            type(split_values[0]) in _ALLOWED_SPLIT_TYPES
-        ), f"Split values must have one of the following types: {_ALLOWED_SPLIT_TYPES}"
-        # TODO: works if multiple list splits are mixed with single list-splits?
-        assert all(
-            [isinstance(sv, type(split_values[0])) for sv in split_values]
-        ), f"All split values must be same type, you have {[type(sv) for sv in split_values]}"
+        # test if splits are specified per dataset
+        # if not, copy splits into dictionary with dataset keys as keys
+        # then go through each dataset with the keys and run below code
+        # TODO: how to handle float splits not per dataset, apply to each dataset or on total datapoints?
 
-        # If only provided one value per split, convert to a list of [start_index, stop_index]
-        if not isinstance(split_values[0], (list, tuple)):
-            _assert_compatible_with_index(
-                split_values[0], dataset.time_index
-            )  # TODO: convert for user?
-            if isinstance(split_values[0], float):
-                assert (
-                    sum(split_values) <= 1.0
-                ), f"You have provided split_values as floats, but they add up to more than 1 ({sum(split_values)})"
-                prev_split = 0.0
-            elif isinstance(split_values[0], int):
-                assert sum(split_values) <= len(
-                    dataset
-                ), f"You have provided split_values as ints, but they add up to more than the number of elements in the dataset ({len(dataset)}"
-                prev_split = 0
-            elif isinstance(split_values[0], str) or isinstance(split_values[0], pd.Timestamp):
-                prev_split = dataset.start_time()
-                pass  # TODO: warn if they are outside the dataset
-            else:
-                raise ValueError
+        if not train_val_test_split.keys() == dataset.keys():
+            # Consider if we should help the user allocate over datapoints rather than over dataset
+            # E.g. if train: 0.5 and val: 0.5 and we have two equally sized datasets, allocate one for training and
+            # one for val rather than dividing each dataset into 50% for each.
 
-            for split_name in split_order:
-                if split_name in train_val_test_split:
-                    if isinstance(split_values[0], (float, int)):
-                        this_split = prev_split + train_val_test_split[split_name]
-                        list_split_values = [prev_split, this_split]
-                    elif isinstance(split_values[0], (str, pd.Timestamp)):
-                        this_split = train_val_test_split[split_name]
-                        if isinstance(this_split, str):
-                            assert this_split not in [
-                                "start",
-                                "end",
-                            ], "Can not use the special strings [start, end] when not supplying explicit [start_point, end_point] values for each split."
-                            this_split = pd.Timestamp(this_split)
-                        list_split_values = [prev_split, this_split]
-                    else:
-                        raise ValueError
-                    prev_split = this_split
-                    train_val_test_split[split_name] = list_split_values
-        else:
-            if any(isinstance(split_values[i][0], list) for i in range(len(split_values))):
+            train_val_test_split = {
+                dataset_name: copy.deepcopy(train_val_test_split)
+                for dataset_name in dataset.keys()
+            }
 
-                def flatten_list_of_lists(list_of_lists):
-                    result = []
-                    for item in list_of_lists:
-                        if isinstance(item[0], list):
-                            result.extend(item)
+        for dataset_name in dataset:
+            dataset_splits = train_val_test_split[dataset_name]
+            if dataset_splits is None:
+                continue
+            dataset_splits = {k: v for k, v in dataset_splits.items() if v is not None}
+            split_order = list(dataset_splits)
+            assert all(
+                [so in ["train", "test", "val"] for so in split_order]
+            ), "Only the entries [train, val, test] are allowed in dataset_splits"
+            split_values = list(dataset_splits.values())
+
+            # TODO: add support for splits per dataset
+            # check that all split values are the same type
+            assert (
+                type(split_values[0]) in _ALLOWED_SPLIT_TYPES
+            ), f"Split values must have one of the following types: {_ALLOWED_SPLIT_TYPES}"
+            # TODO: works if multiple list splits are mixed with single list-splits?
+            assert all(
+                [isinstance(sv, type(split_values[0])) for sv in split_values]
+            ), f"All split values must be same type, you have {[type(sv) for sv in split_values]}"
+
+            # If only provided one value per split, convert to a list of [start_index, stop_index]
+            if not isinstance(split_values[0], (list, tuple)):
+                _assert_compatible_with_index(
+                    split_values[0], dataset[dataset_name].time_index
+                )  # TODO: convert for user?
+                if isinstance(split_values[0], float):
+                    assert (
+                        sum(split_values) <= 1.0
+                    ), f"You have provided split_values as floats, but they add up to more than 1 ({sum(split_values)})"
+                    prev_split = 0.0
+                elif isinstance(split_values[0], int):
+                    assert sum(split_values) <= len(
+                        dataset[dataset_name]
+                    ), f"You have provided split_values as ints, but they add up to more than the number of elements in the dataset ({len(dataset[dataset_name])}"
+                    prev_split = 0
+                elif isinstance(split_values[0], str) or isinstance(split_values[0], pd.Timestamp):
+                    prev_split = dataset[dataset_name].start_time()
+                    # TODO: warn if they are outside the dataset
+                else:
+                    raise ValueError
+
+                for split_name in split_order:
+                    if split_name in dataset_splits:
+                        if isinstance(split_values[0], (float, int)):
+                            this_split = prev_split + dataset_splits[split_name]
+                            list_split_values = [prev_split, this_split]
+                        elif isinstance(split_values[0], (str, pd.Timestamp)):
+                            this_split = dataset_splits[split_name]
+                            if isinstance(this_split, str):
+                                assert this_split not in [
+                                    "start",
+                                    "end",
+                                ], "Can not use the special strings [start, end] when not supplying explicit [start_point, end_point] values for each split."
+                                this_split = pd.Timestamp(this_split)
+                            list_split_values = [prev_split, this_split]
                         else:
-                            result.append(item)
-                    return result
-
-                split_values_flat = flatten_list_of_lists(split_values)
-                for split_value in split_values_flat:
-                    _assert_compatible_with_index(split_value[0], dataset.time_index)
-                    # TODO: check that they are disjoint?
-                    # TODO: yet to assert that all split_values have the same type (i.e. int/float/pd.Timestamp)
+                            raise ValueError
+                        prev_split = this_split
+                        dataset_splits[split_name] = list_split_values
             else:
-                _assert_compatible_with_index(split_values[0][0], dataset.time_index)
+                if any(isinstance(split_values[i][0], list) for i in range(len(split_values))):
+
+                    def flatten_list_of_lists(list_of_lists):
+                        result = []
+                        for item in list_of_lists:
+                            if isinstance(item[0], list):
+                                result.extend(item)
+                            else:
+                                result.append(item)
+                        return result
+
+                    split_values_flat = flatten_list_of_lists(split_values)
+                    for split_value in split_values_flat:
+                        _assert_compatible_with_index(
+                            split_value[0], dataset[dataset_name].time_index
+                        )
+                        # TODO: check that they are disjoint?
+                        # TODO: yet to assert that all split_values have the same type (i.e. int/float/pd.Timestamp)
+                else:
+                    _assert_compatible_with_index(
+                        split_values[0][0], dataset[dataset_name].time_index
+                    )
+
+            for split_i, split_name in enumerate(split_order):
+                split_values = dataset_splits[split_name]
+                if isinstance(split_values[0], list):
+                    split_values = [
+                        get_split_indices(sv, dataset[dataset_name]) for sv in split_values
+                    ]
+                else:
+                    split_values = get_split_indices(split_values, dataset[dataset_name])
+                train_val_test_split[dataset_name][split_name] = split_values
 
         return train_val_test_split
 
         # TODO: assert that the provided split has same type as the index (i.e. int for RangeIndex, Timestamp for DateTimeIndex)
 
-    @staticmethod
-    def split_dataset(
-        dataset: darts.TimeSeries,
-        train_val_test_split: Union[Dict[str, Union[float, Tuple[str, str]]], None],
-    ) -> Dict[str, darts.TimeSeries]:
-        """Takes a dataset and a processed train_val_test_split dictionary and splits the dataset,
-        return a dictionary with the split as keys and the split data as values. Ensure that the
-        train_val_test_split dictionary has been processed by calling process_train_val_test_split
-        before calling this function.
+    def get_split_data(
+        self,
+        split: str,
+        transform: bool = True,
+        datasets: Optional[Union[str, Sequence[str]]] = None,
+    ) -> Union[None, Dict[str, Union[Sequence[darts.TimeSeries], darts.TimeSeries]]]:
+        """Get data for a given split as a Dictionary with keys being the data_variable types
+        (target, future_covariates, past_covariates), and values being the series associated with
+        these based on the datasets bound to self.data and the splits configured in
+        train_val_test_split.
 
-        :param dataset: darts.Timeseries object to be split
-        :param train_val_test_split: Dictionary with keys split_name and values list of
-            [start_index, stop_index] for that split.
-        :return: Dictionary with keys split_name and values split_data.
+        Optionally transform the data.
+        :param split: Name of split, one of ['train', 'val', 'test']
+        :param transform: Whether to transform the data with the processing_pipeline.
+        :param datasets: Name of dataset(s) to get data for, i.e. entries in the self.data
+            dictionary. If none, all datasets will be used.
+        :return: Dictionary of split data or None if split has no data.
         """
+        if not self.has_split_data(split):
+            return None
 
-        def process_split_values(_split_values):
-            assert isinstance(_split_values, (list, tuple)) and len(_split_values) == 2, (
-                "The train_val_test_split argument does not have the correct structure. Have you called"
-                "process_train_val_test_split first?"
-            )
-            if isinstance(_split_values[0], str):
-                if _split_values[0] == "start":
-                    _split_values[0] = dataset.start_time()
-                else:
-                    _split_values[0] = pd.Timestamp(_split_values[0])
-                if _split_values[1] == "end":
-                    _split_values[1] = dataset.end_time()
-                else:
-                    _split_values[1] = pd.Timestamp(_split_values[1])
-                train_val_test_split[split_name] = _split_values
+        res = {
+            k: [] if self.hparams.data_variables.get(k, None) else None
+            for k in ["target", "past_covariates", "future_covariates"]
+        }
 
-            if isinstance(_split_values[0], (float, pd.Timestamp)):
-                _split_values = [dataset.get_index_at_point(sv) for sv in _split_values]
-                if dataset.has_range_index:
-                    _split_values = [sv + dataset.time_index[0] for sv in _split_values]
-            # avoid overlap by making end non-inclusive if next split starts at same point
+        split_datasets = self._get_split_data_raw(split=split, datasets=datasets)
+
+        for dataset in split_datasets:
+            if transform:
+                dataset = self.transform_data(dataset)
+            for series_name in ["target", "past_covariates", "future_covariates"]:
+                if self.hparams.data_variables.get(series_name, None) is not None:
+                    res[series_name].append(
+                        dataset.drop_columns(
+                            [
+                                dv
+                                for dv in dataset.columns
+                                if dv not in self.hparams.data_variables[series_name]
+                            ]
+                        )
+                    )
+
+        return {k: darts.utils.ts_utils.seq2series(v) for k, v in res.items()}
+
+    def _get_split_data_raw(
+        self, split: str, datasets: Optional[Union[str, Sequence[str]]] = None
+    ) -> Union[Sequence[darts.TimeSeries], None]:
+        """Helper function to get the data for a given split before organizing into the covariates
+        as a dictionary.
+
+        :param split: Name of split, one of ['train', 'val', 'test']
+        :param datasets: Name of dataset(s) to get data for, i.e. entries in the self.data
+            dictionary. If none, all datasets will be used.
+        :return: darts.TimeSeries sequence for split.
+        """
+        if not self.has_split_data(split):
+            return None
+        if isinstance(datasets, str):
+            datasets = [datasets]
+
+        split_datasets = []
+
+        for dataset_name, dataset in self.data.items():
+            if datasets is not None and str(dataset_name) not in datasets:
+                continue
             if (
-                split_i < len(split_order) - 1
-                and train_val_test_split[split_name][-1]
-                == train_val_test_split[split_order[split_i + 1]][0]
+                self.hparams.train_val_test_split is None
+                or self.hparams.train_val_test_split[dataset_name] is None
             ):
-                _split_values[-1] -= 1
-            if isinstance(dataset.time_index, pd.DatetimeIndex):
-                _split_values = [dataset.get_timestamp_at_point(sv) for sv in _split_values]
-
-            return _split_values
-
-        splits = {}
-        if train_val_test_split is None:
-            splits["train"] = dataset
-
-            return splits
-
-        split_order = list(train_val_test_split)
-        for split_i, split_name in enumerate(
-            train_val_test_split
-        ):  # TODO: use ordered_dict to ensure order?
-            if split_name in train_val_test_split:
-                split_values = train_val_test_split[split_name]
-                if isinstance(split_values[0], list):
-                    splits[split_name] = [
-                        dataset.slice(*process_split_values(split_v)) for split_v in split_values
-                    ]
-                else:
-                    splits[split_name] = dataset.slice(*process_split_values(split_values))
+                if split == "train":
+                    split_datasets.append(dataset)
+                continue
+            elif self.hparams.train_val_test_split[dataset_name].get(split, None) is None:
+                continue
+            split_values = self.hparams.train_val_test_split[dataset_name].get(split)
+            if isinstance(split_values[0], list):
+                split_datasets.extend([dataset.slice(*split_v) for split_v in split_values])
             else:
-                raise ValueError
+                split_datasets.append(dataset.slice(*split_values))
 
-        return splits
+        if len(split_datasets) == 0:
+            return None
+
+        return split_datasets
 
     def has_split_data(self, split: str) -> bool:
         """Returns True if the datamodule has data for the specified split, False otherwise.
@@ -1197,7 +1260,14 @@ class TimeSeriesDataModule(LightningDataModule):
         :param split: The split to check for data.
         :return: True if the datamodule has data for the specified split, False otherwise.
         """
-        return getattr(self, f"data_{split}") is not None
+        if self.hparams.train_val_test_split is None:
+            return split == "train"
+
+        return any(
+            (dataset_split is None and split == "train")
+            or (dataset_split is not None and dataset_split.get(split) is not None)
+            for dataset_split in self.hparams.train_val_test_split.values()
+        )
 
     def has_split_covariate_type(self, split: str, covariate_type: str) -> bool:
         """Returns True if the datamodule has the given covariate_type (past/future/static) for the
@@ -1208,5 +1278,6 @@ class TimeSeriesDataModule(LightningDataModule):
         :return: True if the datamodule has the covariate type for the specified split, False
             otherwise.
         """
-        split_data = getattr(self, f"data_{split}")
+        # TODO: perhaps better to just check if covariate in data_variables
+        split_data = self.get_split_data(split, transform=False)
         return split_data is not None and split_data.get(covariate_type) is not None

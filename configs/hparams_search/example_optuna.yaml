@@ -35,7 +35,7 @@ hydra:
 
     # storage URL to persist optimization results
     # for example, you can use SQLite if you set 'sqlite:///example.db'
-    storage: "sqlite:////${paths.root_dir}/logs/optuna/hyperopt.db"
+    storage: "sqlite:///${paths.log_dir}optuna/hyperopt.db"
 
     # name of the study to persist optimization results
     study_name: "arima_example"

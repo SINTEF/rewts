@@ -6,9 +6,9 @@ logger:
     _target_: pytorch_lightning.loggers.mlflow.MLFlowLogger
     experiment_name: "rewts" # set to lightning_logs by default
     run_name: ${eval:'"${now:%Y-%m-%d}_${now:%H-%M-%S}" + ("_${hydra:job.num}" if "${hydra:mode}" == "RunMode.MULTIRUN" else "") + "_" + "${logger.mlflow.tags.model}"'}
-    tracking_uri: file:${paths.log_dir}/mlflow/mlruns # run `mlflow ui` command inside the `logs/mlflow/` dir to open the UI
+    tracking_uri: sqlite:///${paths.log_dir}mlflow/mlruns.db # run `mlflow ui` command inside the `logs/mlflow/` dir to open the UI
     tags:
-      tags: ${tags}
+      #tags: ${tags}
       model: ${eval:'"${model._target_}".split(".")[-1]'}
     # save_dir: "./mlruns"
     prefix: ""

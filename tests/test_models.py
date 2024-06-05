@@ -53,6 +53,7 @@ _DEFAULT_MODELS = [
     "transformer",
     # "varima",  # only for multivariate target
     "xgboost",
+    "tide",
 ]
 
 
@@ -164,10 +165,9 @@ def run_train_eval_predict(
     test_metric_dict, eval_objects = evaluate(cfg_eval)
 
     # TODO: perhaps try manipulating the train split to ensure it still works
-    assert (
-        train_objects["datamodule"].data_test["target"]
-        == eval_objects["datamodule"].data_test["target"]
-    )
+    assert train_objects["datamodule"].get_data(["target"], main_split="test") == eval_objects[
+        "datamodule"
+    ].get_data(["target"], main_split="test")
 
     # TODO: does not work for models that have retrain=True, because they will already retrain on the same thing in train
     # script, thus matching the model retraining during eval.

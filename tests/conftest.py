@@ -166,7 +166,7 @@ def train_model_by_name(log_path, model_name, datamodule_name="example_ettm1"):
 
     with open_dict(cfg_train):
         cfg_train.paths.output_dir = str(log_path)
-        cfg_train.paths.log_dir = str(log_path)
+        cfg_train.paths.log_dir = str(log_path) + "/"
         cfg_train.hydra.job.num = 0
         cfg_train.hydra.job.id = 0
         cfg_train.plot_datasets = False

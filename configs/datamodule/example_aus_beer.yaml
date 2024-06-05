@@ -2,4 +2,6 @@ defaults:
   - base_darts_example
 
 dataset_name: "AusBeer"
+data_variables:
+  target: "Y"
 #freq: "3M"   # the sampling frequency of the data as a Timestamp string (quarterly)

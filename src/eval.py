@@ -131,6 +131,13 @@ def run(
             predictions_seq = [predictions_seq]
 
         for pred_i in range(len(predictions_seq)):
+            # inserts dummy prediction in this case
+            if (
+                src.models.utils.is_regression_model(model)
+                and list(model.lags.keys()) == ["future"]
+                and min(model.lags["future"]) >= 0
+            ):
+                predictions_seq[pred_i] = predictions_seq[pred_i][1:]
             if inverse_transform_data_func is not None:
                 predictions_seq[pred_i] = src.utils.inverse_transform_data(
                     inverse_transform_data_func, predictions_seq[pred_i]
@@ -147,7 +154,7 @@ def run(
                 inverse_transform_data_func, prediction_data_seq
             )
 
-        # TODO: a substantial speedup can be achieved if possible with TimeSeries instead of Sequence of TimeSeries
+        log.info("Calculating metrics!")
         metrics = model.backtest(
             prediction_data_seq["series"],
             historical_forecasts=predictions_seq if is_multiple_series else predictions_seq[0],
@@ -171,7 +178,7 @@ def run(
             if is_multiple_series:
                 predictions_to_save = predictions_seq
             else:
-                predictions_to_save = darts.utils.utils.seq2series(predictions_seq[0])
+                predictions_to_save = darts.utils.ts_utils.seq2series(predictions_seq[0])
 
             pred_folder = os.path.join(cfg.paths.output_dir, "predictions")
             os.makedirs(pred_folder, exist_ok=True)
@@ -192,7 +199,7 @@ def run(
             if is_multiple_series:
                 object_dict["predictions"] = predictions_seq
             else:
-                object_dict["predictions"] = darts.utils.utils.seq2series(predictions_seq[0])
+                object_dict["predictions"] = darts.utils.ts_utils.seq2series(predictions_seq[0])
 
             if OmegaConf.select(cfg.eval, "predictions.return.data"):
                 object_dict["predictions_data"] = prediction_data_seq
@@ -241,6 +248,7 @@ def run(
                     {
                         k: v[pred_i] if is_multiple_series else v
                         for k, v in prediction_data_seq.items()
+                        if v is not None
                     },
                     model,
                     presenters,
@@ -303,11 +311,7 @@ def run(
         )
 
     if cfg.eval.get("log_metrics"):  # TODO: translate split_loss into split_rmse?
-        split_range = datamodule.get_split_range(cfg.eval.split)
-        if isinstance(split_range[0], pd.Timestamp):
-            split_range = tuple(index.strftime("%Y-%m-%d") for index in split_range)
         results_to_serialize = dict(
-            dataset_range=split_range,
             split=cfg.eval.split,
             model_name=str(model),  # make prettier?
             forecast_horizon=cfg.eval.kwargs.get("forecast_horizon", 1),

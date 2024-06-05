@@ -80,7 +80,7 @@ def plot_darts_timeseries(
     :return: List of figures plotted if presenter is None, None otherwise.
     """
     figs = []
-    series_list = darts.utils.utils.series2seq(series_to_be_plotted)
+    series_list = darts.utils.ts_utils.series2seq(series_to_be_plotted)
 
     for series_i, series in enumerate(series_list):
         series.plot(new_plot=True)
