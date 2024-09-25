@@ -52,6 +52,12 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed") is not None:  # TODO: separate seed for non-torch models?
         pl.seed_everything(cfg.seed, workers=True)
+        if (
+            OmegaConf.select(cfg, "model._target_") == "darts.models.forecasting.xgboost.XGBModel"
+            and OmegaConf.select(cfg, "model.random_state") is None
+        ):
+            with open_dict(cfg):
+                cfg.model.random_state = cfg.seed
 
     time_metrics = {}
     metric_dict = {}
@@ -127,8 +133,8 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     if cfg.get("train"):
         # Ensure model is properly saved when using customer trainer object
         if trainer is not None:  # maybe also only if is torchmodel?
-            assert isinstance(
-                model, darts.models.forecasting.torch_forecasting_model.TorchForecastingModel
+            assert src.models.utils.is_torch_model(
+                model
             ), "Pytorch lightning trainer should only be used with TorchForecastingModels"
 
             if any(
@@ -141,30 +147,27 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
             ):
                 fit_kwargs["verbose"] = False
             if cfg.get("ckpt_path", None) is not None:
+                with open_dict(cfg):
+                    cfg.ckpt_path = src.utils.hydra.get_absolute_project_path(cfg.ckpt_path)
                 assert os.path.exists(cfg.ckpt_path), "Provided checkpoint file could not be found"
                 model.load_ckpt_path = cfg.ckpt_path
 
-        if cfg.get(
-            "plot_datasets"
-        ):  # TODO: can rewrite to use multiple presenters and only call datamodule.plot_data once
-            # requires either changing plot_data to use new multiple presenters function, or using presenter=None
-            # and then calling multiple_present after
-            presenters = logger if len(logger) > 0 else ["savefig"]
-            for presenter in presenters:
-                if src.utils.plotting.is_supported_presenter(presenter):
-                    if isinstance(presenter, pytorch_lightning.loggers.TensorBoardLogger):
-                        dataset_plot_kwargs = dict(global_step=0)
-                    elif isinstance(presenter, pytorch_lightning.loggers.MLFlowLogger):
-                        dataset_plot_kwargs = dict(fname="datasets")
-                    else:
-                        dataset_plot_kwargs = dict(
-                            fname=os.path.join(cfg.paths.output_dir, "plots", "datasets")
-                        )
-                    datamodule.plot_data(
-                        presenter=presenter,
-                        separate_components=cfg.plot_datasets.get("separate_components", False),
-                        **dataset_plot_kwargs,
-                    )
+        if cfg.get("plot_datasets"):
+            datamodule_figs = datamodule.plot_data(
+                presenter=None,
+                separate_components=cfg.plot_datasets.get("separate_components", False),
+            )
+            for fig in datamodule_figs:
+                presenters, presenter_kwargs = src.utils.get_presenters_and_kwargs(
+                    None,
+                    os.path.join(cfg.paths.output_dir, "plots", "datasets"),
+                    "-".join(ax.get_title() for ax in fig.axes),
+                    logger,
+                    trainer,
+                )
+                src.utils.plotting.multiple_present_figure(
+                    fig, presenters, presenter_kwargs=presenter_kwargs
+                )
 
         log.info("Starting training!")
 

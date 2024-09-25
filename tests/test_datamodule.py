@@ -740,3 +740,78 @@ def test_empty_data_variable_list(get_darts_example_dm, data_variable):
     else:
         # should not error
         dm.setup("fit")
+
+
+# TODO: test int and floats as well
+def test_generate_cross_validation_folds(get_darts_example_dm):
+    train_fraction = 0.75
+    folds = src.datamodules.utils.generate_cross_validation_folds(
+        "2023-09-18", "2024-01-22 03:30:00", pd.Timedelta("1w"), train_fraction=train_fraction
+    )
+    assert len(folds) == int(train_fraction / (1 - train_fraction)) + 1
+    expected_folds = [
+        {
+            "train": [
+                [pd.Timestamp("2023-09-18 00:00:00"), pd.Timestamp("2023-09-25 00:00:00")],
+                [pd.Timestamp("2023-10-02 00:00:00"), pd.Timestamp("2023-10-23 00:00:00")],
+                [pd.Timestamp("2023-10-30 00:00:00"), pd.Timestamp("2023-11-20 00:00:00")],
+                [pd.Timestamp("2023-11-27 00:00:00"), pd.Timestamp("2023-12-18 00:00:00")],
+                [pd.Timestamp("2023-12-25 00:00:00"), pd.Timestamp("2024-01-15 00:00:00")],
+            ],
+            "val": [
+                [pd.Timestamp("2023-09-25 00:00:00"), pd.Timestamp("2023-10-02 00:00:00")],
+                [pd.Timestamp("2023-10-23 00:00:00"), pd.Timestamp("2023-10-30 00:00:00")],
+                [pd.Timestamp("2023-11-20 00:00:00"), pd.Timestamp("2023-11-27 00:00:00")],
+                [pd.Timestamp("2023-12-18 00:00:00"), pd.Timestamp("2023-12-25 00:00:00")],
+                [pd.Timestamp("2024-01-15 00:00:00"), pd.Timestamp("2024-01-22 03:30:00")],
+            ],
+        },
+        {
+            "train": [
+                [pd.Timestamp("2023-09-18 00:00:00"), pd.Timestamp("2023-10-02 00:00:00")],
+                [pd.Timestamp("2023-10-09 00:00:00"), pd.Timestamp("2023-10-30 00:00:00")],
+                [pd.Timestamp("2023-11-06 00:00:00"), pd.Timestamp("2023-11-27 00:00:00")],
+                [pd.Timestamp("2023-12-04 00:00:00"), pd.Timestamp("2023-12-25 00:00:00")],
+                [pd.Timestamp("2024-01-01 00:00:00"), pd.Timestamp("2024-01-22 03:30:00")],
+            ],
+            "val": [
+                [pd.Timestamp("2023-10-02 00:00:00"), pd.Timestamp("2023-10-09 00:00:00")],
+                [pd.Timestamp("2023-10-30 00:00:00"), pd.Timestamp("2023-11-06 00:00:00")],
+                [pd.Timestamp("2023-11-27 00:00:00"), pd.Timestamp("2023-12-04 00:00:00")],
+                [pd.Timestamp("2023-12-25 00:00:00"), pd.Timestamp("2024-01-01 00:00:00")],
+            ],
+        },
+        {
+            "train": [
+                [pd.Timestamp("2023-09-18 00:00:00"), pd.Timestamp("2023-10-09 00:00:00")],
+                [pd.Timestamp("2023-10-16 00:00:00"), pd.Timestamp("2023-11-06 00:00:00")],
+                [pd.Timestamp("2023-11-13 00:00:00"), pd.Timestamp("2023-12-04 00:00:00")],
+                [pd.Timestamp("2023-12-11 00:00:00"), pd.Timestamp("2024-01-01 00:00:00")],
+                [pd.Timestamp("2024-01-08 00:00:00"), pd.Timestamp("2024-01-22 03:30:00")],
+            ],
+            "val": [
+                [pd.Timestamp("2023-10-09 00:00:00"), pd.Timestamp("2023-10-16 00:00:00")],
+                [pd.Timestamp("2023-11-06 00:00:00"), pd.Timestamp("2023-11-13 00:00:00")],
+                [pd.Timestamp("2023-12-04 00:00:00"), pd.Timestamp("2023-12-11 00:00:00")],
+                [pd.Timestamp("2024-01-01 00:00:00"), pd.Timestamp("2024-01-08 00:00:00")],
+            ],
+        },
+        {
+            "train": [
+                [pd.Timestamp("2023-09-25 00:00:00"), pd.Timestamp("2023-10-16 00:00:00")],
+                [pd.Timestamp("2023-10-23 00:00:00"), pd.Timestamp("2023-11-13 00:00:00")],
+                [pd.Timestamp("2023-11-20 00:00:00"), pd.Timestamp("2023-12-11 00:00:00")],
+                [pd.Timestamp("2023-12-18 00:00:00"), pd.Timestamp("2024-01-08 00:00:00")],
+                [pd.Timestamp("2024-01-15 00:00:00"), pd.Timestamp("2024-01-22 03:30:00")],
+            ],
+            "val": [
+                [pd.Timestamp("2023-09-18 00:00:00"), pd.Timestamp("2023-09-25 00:00:00")],
+                [pd.Timestamp("2023-10-16 00:00:00"), pd.Timestamp("2023-10-23 00:00:00")],
+                [pd.Timestamp("2023-11-13 00:00:00"), pd.Timestamp("2023-11-20 00:00:00")],
+                [pd.Timestamp("2023-12-11 00:00:00"), pd.Timestamp("2023-12-18 00:00:00")],
+                [pd.Timestamp("2024-01-08 00:00:00"), pd.Timestamp("2024-01-15 00:00:00")],
+            ],
+        },
+    ]
+
+    assert folds == expected_folds

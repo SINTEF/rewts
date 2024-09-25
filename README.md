@@ -190,7 +190,7 @@ and note their log folders. The global_iterative experiment will train global mo
 Then to run the evaluations, do:
 
 ```bash
-python src/eval.py --multirun experiment=chunk_eval_iterative ensemble_model_dir=path/to/ensemble global_model_dir=path/to/global model_type=ensemble,global
+python src/eval.py --multirun experiment=chunk_eval_iterative ensemble_model_dir=path/to/ensemble global_model_dir=path/to/global model_type=ensemble,global chunk_idx_end=32
 ```
 
 Alternatively, training and evaluation can be run as an integrated pipeline using the [scripts/run_iterative_experiment.sh](scripts/run_iterative_experiment.sh) script:

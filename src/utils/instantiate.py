@@ -1,11 +1,10 @@
 import os
-import time
+import urllib.parse
+from pathlib import Path
 from typing import List
 
 import darts.dataprocessing
 import hydra
-import mlflow.exceptions
-import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.loggers import Logger
@@ -49,10 +48,20 @@ def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
 
     for _, lg_conf in logger_cfg.items():
         if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
-            if lg_conf._target_ == "pytorch_lightning.loggers.mlflow.MLFlowLogger" and not OmegaConf.select(lg_conf, "tracking_uri", default="file:").startswith("file:"):
-                db_path = ":".join(lg_conf["tracking_uri"].split(":")[1:])
-                if not os.path.exists(os.path.dirname(db_path)):
-                    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            if (
+                lg_conf._target_ == "pytorch_lightning.loggers.mlflow.MLFlowLogger"
+                and not OmegaConf.select(lg_conf, "tracking_uri", default="file:").startswith(
+                    "file:"
+                )
+            ):
+                local_path = urllib.parse.urlparse(lg_conf["tracking_uri"]).path
+
+                if local_path.startswith("/") and local_path[2] == ":":  # Handle Windows paths
+                    local_path = local_path[1:]
+
+                local_path = Path(local_path)
+                if not local_path.parent.exists():
+                    local_path.mkdir(parents=True)
             log.info(f"Instantiating logger <{lg_conf._target_}>")
             logger.append(hydra.utils.instantiate(lg_conf))
     return logger

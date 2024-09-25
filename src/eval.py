@@ -291,7 +291,7 @@ def run(
 
     if cfg.eval.metrics_per_series and metrics.shape[0] > 1:
         metric_dict = {
-            f"{metric_name}_{s_i}": metrics[s_i, m_i]
+            f"{metric_name}_series{s_i}": metrics[s_i, m_i]
             for m_i, metric_name in enumerate(metric_names)
             for s_i in range(metrics.shape[0])
         }

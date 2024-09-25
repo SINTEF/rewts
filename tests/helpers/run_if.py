@@ -52,6 +52,8 @@ class RunIf:
         neptune: bool = False,
         comet: bool = False,
         mlflow: bool = False,
+        min_cuda: Optional[str] = None,
+        max_cuda: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -69,6 +71,8 @@ class RunIf:
             neptune: if `neptune` module is required to run the test
             comet: if `comet` module is required to run the test
             mlflow: if `mlflow` module is required to run the test
+            min_cuda: minimum CUDA version to run test
+            max_cuda: maximum CUDA version to run test
             kwargs: native pytest.mark.skipif keyword arguments
         """
         conditions = []
@@ -130,6 +134,18 @@ class RunIf:
         if mlflow:
             conditions.append(not _MLFLOW_AVAILABLE)
             reasons.append("mlflow")
+
+        if min_cuda:
+            conditions.append(
+                torch.version.cuda is None or Version(torch.version.cuda) < Version(min_cuda)
+            )
+            reasons.append(f"cuda>={min_cuda}")
+
+        if max_cuda:
+            conditions.append(
+                torch.version.cuda is None or Version(torch.version.cuda) >= Version(max_cuda)
+            )
+            reasons.append(f"cuda<{max_cuda}")
 
         reasons = [rs for cond, rs in zip(conditions, reasons) if cond]
         return pytest.mark.skipif(

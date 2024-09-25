@@ -1,6 +1,6 @@
 # --------- darts --------- #
 statsforecast==1.4.0 # newer statsforecast version is not compatible with darts
-darts==0.29.0
+darts==0.30.0
 pandas>=1.5.0
 
 # --------- hydra --------- #

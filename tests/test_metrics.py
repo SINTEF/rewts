@@ -44,13 +44,14 @@ def run_soft_dtw_tests(cfg_train_torch, accelerator="cpu"):
     GlobalHydra.instance().clear()
 
 
+@RunIf(max_cuda="10.2")
 def test_soft_dtw_cpu(cfg_train_torch):
     """Test that CPU implementation of SoftDTW works."""
     run_soft_dtw_tests(cfg_train_torch.copy(), accelerator="cpu")
     run_soft_dtw_tests(cfg_train_torch, accelerator="auto")
 
 
-@RunIf(min_gpus=1)
+@RunIf(min_gpus=1, max_cuda="10.2")
 def test_soft_dtw_gpu(cfg_train_torch):
     """Test that CPU implementation of SoftDTW works."""
     run_soft_dtw_tests(cfg_train_torch, accelerator="gpu")

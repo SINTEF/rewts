@@ -531,7 +531,10 @@ class TimeSeriesDataModule(LightningDataModule):
                             series.univariate_component(component).plot(
                                 ax=ax, label=label, color=color
                             )
-                            ax.set_title(f"{title_prefix}{data_type}")
+                            if separate_series_components:
+                                ax.set_title(f"{title_prefix}{data_type} {component}")
+                            else:
+                                ax.set_title(f"{title_prefix}{data_type}")
                             labeled_components.add(component)
 
                             # Background color for splits, only
@@ -541,7 +544,7 @@ class TimeSeriesDataModule(LightningDataModule):
                                 ax.axvspan(
                                     series.time_index[0],
                                     series.time_index[-1],
-                                    color=_PLOT_SPLIT_COLOR[plot_split],
+                                    facecolor=_PLOT_SPLIT_COLOR[plot_split],
                                     alpha=0.1,
                                 )
 
@@ -595,6 +598,7 @@ class TimeSeriesDataModule(LightningDataModule):
                     if serieses is not None and (
                         split_series_to_call == "all" or series_type in split_series_to_call
                     ):
+                        serieses = darts.utils.ts_utils.series2seq(serieses)
                         for series_i, series in enumerate(serieses):
                             component_series_to_call = (
                                 "all"

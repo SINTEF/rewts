@@ -16,7 +16,7 @@ defaults:
   - model: rnn.yaml
   # override to set ensemble config, e.g. to use same eval.kwargs.start as the ensemble model will use
   - ensemble: null
-  #- logger: mlflow # Torch models will use tensorboard and mlflow while nontorch models use mlflow by default. Override here or on command line
+  - logger: mlflow.yaml
   - paths: default.yaml
   - extras: default.yaml
   - hydra: default.yaml

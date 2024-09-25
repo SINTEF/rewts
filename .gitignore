@@ -149,6 +149,8 @@ configs/local/default.yaml
 configs/local/slurm.yaml
 data/
 logs/
+figures/
+**/mlruns/
 .env
 .autoenv
 scripts/vars.sh

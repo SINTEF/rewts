@@ -1,0 +1,9 @@
+# @package _global_
+# https://mlflow.org
+
+defaults:
+  - mlflow.yaml
+
+logger:
+  mlflow:
+    tracking_uri: sqlite:///${paths.log_dir}mlflow/mlruns.db # run `mlflow ui` command inside the `logs/mlflow/` dir to open the UI

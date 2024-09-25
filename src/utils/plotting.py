@@ -327,17 +327,18 @@ def create_figure(
 
 
 def present_figure(
-    fig: plt.Figure, presenter: Any, **presenter_kwargs: Optional[Dict[str, Any]]
+    fig: plt.Figure, presenter: Any, close=True, **presenter_kwargs: Optional[Dict[str, Any]]
 ) -> Union[plt.Figure, None]:
     """Utility function to present a figure using a given presenter. If presenter is None, the
     figure is returned. If the presenter is a TensorBoardLogger, the figure is added to the
     TensorBoardLogger. If the presenter is a MLFlowLogger, the figure is saved to the MLFlowLogger.
     If the presenter is show, the figure is shown. If the presenter is savefig, the figure is saved
-    to the path given in the fname keyword argument. If presenter is not None, the figure is
-    closed.
+    to the path given in the fname keyword argument. If presenter is not None, the figure will be
+    closed if close is True.
 
     :param fig: Figure to present.
     :param presenter: Presenter to use.
+    :param close: Whether to close the figure.
     :param presenter_kwargs: Keyword arguments to pass to the presenter.
     :return: fig if presenter is None, None otherwise.
     """
@@ -413,7 +414,8 @@ def present_figure(
         plt.show(block=presenter_kwargs.get("block", False))
     else:
         raise ValueError(f"Unrecognized presenter {presenter}, must be one of {PRESENTERS}")
-    plt.close(fig)
+    if close:
+        plt.close(fig)
 
 
 def plot_ensemble_weights(
@@ -491,17 +493,21 @@ def plot_ensemble_weights(
 
 # TODO: use is supported presenter?
 def multiple_present_figure(
-    fig: plt.Figure, presenter: List[Any], presenter_kwargs: Optional[List[Dict[str, Any]]] = None
+    fig: plt.Figure,
+    presenter: List[Any],
+    close=True,
+    presenter_kwargs: Optional[List[Dict[str, Any]]] = None,
 ) -> Union[plt.Figure, None]:  # TODO: do we have to wait with closing figure until last one?
     """Utility function to present a figure using a given presenter. If presenter is None, the
     figure is returned. If the presenter is a TensorBoardLogger, the figure is added to the
     TensorBoardLogger. If the presenter is a MLFlowLogger, the figure is saved to the MLFlowLogger.
     If the presenter is show, the figure is shown. If the presenter is savefig, the figure is saved
-    to the path given in the fname keyword argument. If presenter is not None, the figure is
-    closed.
+    to the path given in the fname keyword argument. If presenter is not None, the figure is closed
+    if close is True.
 
     :param fig: Figure to present.
     :param presenter: List of presenters to use.
+    :param close: Whether to close the figure.
     :param presenter_kwargs: List of keyword arguments to pass to the presenter.
     :return: fig if one of the presenters is None, None otherwise.
     """
@@ -519,9 +525,14 @@ def multiple_present_figure(
     for p_i in range(len(presenter)):
         p_kwargs = presenter_kwargs[p_i]
         if isinstance(p_kwargs, dict):
-            p_res = present_figure(fig, presenter[p_i], **presenter_kwargs[p_i])
+            p_res = present_figure(
+                fig,
+                presenter[p_i],
+                close=p_i == len(presenter) - 1 and close,
+                **presenter_kwargs[p_i],
+            )
         else:
-            p_res = present_figure(fig, presenter[p_i])
+            p_res = present_figure(fig, presenter[p_i], close=p_i == len(presenter) - 1 and close)
         if p_res is not None:
             res = p_res
 

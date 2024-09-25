@@ -265,6 +265,10 @@ def log_hyperparameters(object_dict: dict) -> None:
             p.numel() for p in model.model.parameters() if not p.requires_grad
         )
 
+    # log number of trees used by xgboost
+    if getattr(getattr(model, "model", None), "best_iteration", None) is not None:
+        hparams["model/num_trees"] = model.model.best_iteration
+
     if OmegaConf.select(cfg, "log_hyperparameters_custom") is not None:
         for dot_path in OmegaConf.select(cfg, "log_hyperparameters_custom"):
             hparams[dot_path] = OmegaConf.select(cfg, dot_path)
@@ -671,7 +675,9 @@ def get_presenters_and_kwargs(presenters, fig_dir, fig_name, logger=None, traine
                 p_kwargs = dict(
                     global_step=trainer.global_step if trainer is not None else 0, tag=fig_name
                 )
-            elif presenter == "savefig":
+            elif presenter == "savefig" or isinstance(
+                presenter, pytorch_lightning.loggers.mlflow.MLFlowLogger
+            ):
                 p_kwargs = dict(fname=os.path.join(fig_dir, fig_name))
             else:
                 p_kwargs = dict(fname=fig_name)
