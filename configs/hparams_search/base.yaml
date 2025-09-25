@@ -25,7 +25,7 @@ logger:
 callbacks:
   early_stopping:
     monitor: "val_loss"
-    patience: 10
+    patience: 5
     mode: ${eval:'"${hydra:sweeper.direction}"[:3]'}
   model_checkpoint:
     monitor: "val_loss"
@@ -36,15 +36,16 @@ test: True
 predict: False
 
 trainer:
-  max_epochs: 1000
+  max_epochs: 100
 
 LOOKBACK_MAX_LENGTH: 300
 HOPT_DATA_FRACTION: 0.33
+HOPT_TEST_FRACTION: 0.1
 
 ensemble_disable_logger: True
 
 datamodule:
-  train_val_test_split: # relative to chunk_data_length
+  train_val_test_split: 
     train: 0.75
     val: 0.25
     test: null
@@ -58,12 +59,12 @@ eval_datamodule:
   chunk_idx: null
   crop_data_range:
     - ${eval:'int(${datamodule.dataset_length} * ${HOPT_DATA_FRACTION})'}
-    - ${eval:'int(${datamodule.dataset_length} * ${HOPT_DATA_FRACTION} * 1.1)'}
+    - ${eval:'int(${datamodule.dataset_length} * ${HOPT_DATA_FRACTION} * (1+ ${HOPT_TEST_FRACTION}))'}
 
 eval:
   split: "test"
-  kwargs:
-    start: ${LOOKBACK_MAX_LENGTH}
+  #kwargs:
+    #start: ${LOOKBACK_MAX_LENGTH} NB: This may create an error if the test data is too small
   inverse_transform_data: False
 
 ckpt: "best"
@@ -97,7 +98,7 @@ hydra:
     direction: "minimize"
 
     # total number of runs that will be executed
-    n_trials: 100
+    n_trials: 100 
 
     # choose Optuna hyperparameter sampler
     # you can choose bayesian sampler (tpe), random search (without optimization), grid sampler, and others

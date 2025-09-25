@@ -1,0 +1,55 @@
+# @package _global_
+
+defaults:
+  - base_data@datamodule
+
+datamodule:
+  _target_: src.datamodules.beijing_airquality_datamodule.BeijingAirQualityDatamodule
+  chunk_length: 336
+  dataset_length: 35064
+  check_for_nan: True
+  data_variables:
+    target:
+      - "PM2.5"
+    future_covariates:
+      - "PM10"
+      - "SO2"
+      - "NO2"
+      - "CO"
+      - "O3"
+      - "TEMP"
+      - "PRES"
+      - "DEWP"
+      - "RAIN"
+      - "wd_E"
+      - "wd_ENE"
+      - "wd_ESE"
+      - "wd_N"
+      - "wd_NE"
+      - "wd_NNE"
+      - "wd_NNW"
+      - "wd_NW"
+      - "wd_S"
+      - "wd_SE"
+      - "wd_SSE"
+      - "wd_SSW"
+      - "wd_SW"
+      - "wd_W"
+      - "wd_WNW"
+      - "wd_WSW"
+      - "WSPM"
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Scaler
+        global_fit: True
+        scaler:
+          _target_: sklearn.preprocessing.MinMaxScaler
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+
+
+#eval:
+#  kwargs:
+#    start_format: "position"

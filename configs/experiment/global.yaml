@@ -23,7 +23,8 @@ logger:
   mlflow:
     tags:
       ensemble: False
-
+    experiment_name: ???
+    
 eval:
   inverse_transform_data:
     partial_ok: True

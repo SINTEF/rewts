@@ -1,0 +1,40 @@
+# @package _global_
+
+defaults:
+  - base_data@datamodule
+
+datamodule:
+  _target_: src.datamodules.benzen_datamodule.BenzenDatamodule
+  chunk_length: 336
+  dataset_length: 9357
+  check_for_nan: True
+  data_variables:
+    target:
+      - "C6H6(GT)"
+    future_covariates:
+      - "CO(GT)"
+      - "PT08.S1(CO)"
+      - "NMHC(GT)"
+      - "PT08.S2(NMHC)"
+      - "NOx(GT)"
+      - "NO2(GT)"
+      - "PT08.S4(NO2)"
+      - "PT08.S5(O3)"
+      - "T"
+      - "RH"
+      - "AH"
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Scaler
+        global_fit: True
+        scaler:
+          _target_: sklearn.preprocessing.StandardScaler
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+
+
+#eval:
+#  kwargs:
+#    start_format: "position"

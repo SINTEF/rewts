@@ -2,7 +2,7 @@ defaults:
   - base_torch
 
 _target_: darts.models.forecasting.rnn_model.RNNModel
-input_chunk_length: 42
+input_chunk_length: 8
 output_chunk_length: 1
 optimizer_cls:
   _target_: torch.optim.Adam
@@ -10,7 +10,7 @@ optimizer_cls:
 optimizer_kwargs:
   lr: 0.001
 model: LSTM
-hidden_dim: 9
+hidden_dim: 12
 training_length: ${eval:'${eval.kwargs.forecast_horizon} + ${model.input_chunk_length}'}
 n_rnn_layers: 2
-dropout: 0.4
+dropout: 0.0

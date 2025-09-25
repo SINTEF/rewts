@@ -20,8 +20,7 @@ tags:
 seed: 12345
 
 chunk_idx_start: 0
-chunk_idx_end: ${eval:'${datamodule.dataset_length} // ${datamodule.chunk_length}'}
-
+chunk_idx_end: ${eval:'${datamodule.dataset_length} // ${datamodule.chunk_length}'} 
 # Scale the global model's parameters according to the number of models in the corresponding ensemble
 scale_model_parameters: False
 

@@ -124,7 +124,7 @@ The above will train ensemble and baseline global xgboost models and enable the 
 
 ### Hyperparameter Optimization
 
-Hyperparameter optimization as described in the paper can be done by making a config file at [configs/hparams_search](configs/hparams_search), and using this with the [src/train_hopt.py](src/train_hopt.py) python script. An example of hyperparamter optimization for global models can be run with:
+Hyperparameter optimization as described in the paper can be done by making a config file at [configs/hparams_search](configs/hparams_search), and using this with the [src/train_hopt.py](src/train_hopt.py) python script. An example of hyperparameter optimization for global models can be run with:
 
 ```bash
 python src/train_hopt.py hparams_search=electricity_elastic_net
@@ -141,6 +141,7 @@ The results are saved in a database at [logs/optuna/hyperopt.db](logs/optuna/hyp
 ```bash
 bash scripts/run_optuna_dashboard.sh
 ```
+Another option is to use VS code and download the Optuna dashboard extension. You can then right click on the hyperopt.db database to see the dashboard directly in VS code.
 
 ### Using Your Own Dataset
 
@@ -163,7 +164,7 @@ Also note that the dataset set to self.data at the end of the setup() function m
 
 ## Process Data Experiments
 
-The main branch of this repository is under active development. The state of the code used to produce the results of the paper and the results on the electricity dataset shown below is available on the branch paper.
+The main branch of this repository is under active development. 
 
 This section documents the experiments where process data is chunked in time. The datasets employed in the paper are not publicly available. Instead, we will illustrate the procedure using the Electricity dataset (Harries 1999), a dataset often used to evaluate machine learning models in the context of concept drift. In this sense, it is similar to the datasets employed in the paper. The dataset was downloaded from this [link](https://www.openml.org/search?type=data&sort=runs&id=151&status=active), and is included in the repository at [data/electricity-normalized.arff](data/electricity-normalized.arff)
 
@@ -173,16 +174,19 @@ This dataset was collected from the Australian New South Wales Electricity Marke
 
 The procedure we followed to optimize the global and ensemble forecasting models were as follows. We assumed initially you will collect some data before you start training forecasting models. Thus, we use the first 33% of the dataset to experiment and do hyperparameter optimization (HPO) using the following procedure:
 
-1. **Experiment with chunk_length and lookback_data_length**. For instance by running HPO with the [configs/hparams_search/electricity_elastic_net_ensemble.yaml](configs/hparams_search/electricity_elastic_net_ensemble.yaml) config.
-2. **Perform HPO with the chosen model architectures**. We have prepared and run configs for the four model architectures used in the paper: [tcn](configs/hparams_search/electricity_tcn.yaml), [rnn](configs/hparams_search/electricity_rnn.yaml), [xgboost](configs/hparams_search/electricity_tcn.yaml), and [elastic net](configs/hparams_search/electricity_elastic_net.yaml). In order to not bias our results in favor of the ReWTS model, we chose to do HPO with global models (i.e. training a single model on all the first 33% of the data) and then use these results as the basis for both global and ensemble models. For the neural network models, we scale down the parameter count (by changing num_filters for TCN and hidden_dim for RNN) such that each ensemble model has 1 / (num chunks in HPO data) parameters. Since we scale the number of parameters in the global model to match the ensemble, when training the global models on 0-33% of the data it will be equal in parameter count to what was identified as optimal through HPO and continue to increase from there as the size of the training set increases. We also test global models that do not scale, i.e. the always use the hyperparameters from HPO no-matter the size of the training set.
+
+1. **Perform HPO with the chosen model architectures**. We have prepared and run configs for the four model architectures used in the paper: [tcn](configs/hparams_search/electricity_tcn.yaml), [rnn](configs/hparams_search/electricity_rnn.yaml), [xgboost](configs/hparams_search/electricity_tcn.yaml), and [elastic net](configs/hparams_search/electricity_elastic_net.yaml). In order to not bias our results in favor of the ReWTS model, we chose to do HPO with global models (i.e. training a single model on all the first 33% of the data) and then use these results as the basis for both global and ensemble models. For the neural network models, we scale down the parameter count (by changing num_filters for TCN and hidden_dim for RNN) such that each ensemble model has 1 / (num chunks in HPO data) parameters. Since we scale the number of parameters in the global model to match the ensemble, when training the global models on 0-33% of the data it will be equal in parameter count to what was identified as optimal through HPO and continue to increase from there as the size of the training set increases. We also test global models that do not scale, i.e. the always use the hyperparameters from HPO no-matter the size of the training set.
+2. **Experiment with chunk_length and lookback_data_length**. For instance by running HPO with the [configs/hparams_search/electricity_elastic_net_ensemble.yaml](configs/hparams_search/electricity_elastic_net_ensemble.yaml) config.
 3. **Run iterative chunk evaluations using optimized hyperparameters**. We have saved the results of the HPO from step 2. in the configs at configs/model/electricity\_{[elastic_net](configs/model/electricity_elastic_net.yaml), [rnn](configs/model/electricity_rnn.yaml), [tcn](configs/model/electricity_tcn.yaml), [xgboost](configs/model/electricity_xgboost.yaml)}. By training on chunks #1, 2, ..., c - 1 and evaluating on chunk #c we simulate the situation where you have decided on an architecture for your forecasting models, and you test how well the models perform on new data as it streams in.
 
 ### Training and Evaluation
 
-To train the ensemble model and the global model do the following:
+To train the ensemble model and the global model respectively, do the following:
 
 ```bash
-python src/train.py --multirun experiment=ensemble,global_iterative model=electricity_tcn
+python src/train.py --multirun experiment=ensemble model=electricity_tcn
+
+python src/train.py --multirun experiment=global_iterative model=electricity_tcn
 ```
 
 and note their log folders. The global_iterative experiment will train global models on progressively bigger datasets of accumulated chunks and have their parameters scaled to match the corresponding ensemble.
@@ -207,35 +211,18 @@ bash scripts/run_mlflow_ui.sh
 
 ### Electricity Results
 
-Following the procedure described above produced these results on the Electricity dataset.
+Following the procedure described above produced these results on the Electricity dataset when chunk length is set to four weeks and look-back length is set to two days.
 
 |                   | Elastic Net | XGBoost  | TCN      | LSTM     |
 | ----------------- | ----------- | -------- | -------- | -------- |
-| Global No Scaling | N/A         | N/A      | 2.95e-03 | 1.56e-03 |
-| Global            | 1.11e-03    | 8.40e-04 | 1.64e-03 | 4.76e-03 |
-| ReWTS             | 1.19e-03    | 7.58e-04 | 1.35e-03 | 1.07e-03 |
-| % Difference      | -6.8%       | 10.2%    | 19.4%    | 37.8%    |
+| Global            | 1.35E-03    | 9.90E-04 | 1.58E-03 |1.44E-03  |
+| ReWTS             | 1.28E-03    | 7.57E-04 | 1.56E-03 |1.18E-03  |
+| % Difference      | 5.3%        | 26.6%    | 1.2%     | 19.2%    |
+|Wicoxon p-value    | 2.9E-02     | 4.35E-03 | 2.6E-01  | 3.3E-01  |
 
-Here % Difference is the relative difference of the best of global and global no scaling versus ReWTS. These results generally align with the results of the paper, with the one exception that the elastic net architecture which for this dataset is actually better with global model than with the ReWTS model. Note that we have not tried to optimize the hyperparameters specifically for the ensemble models, but rather used the results of the global model HPO as described above, and thus the ensemble model elastic net could possibly be improved.
+Here % Difference is the relative difference of the best of global and global no scaling versus ReWTS. Note that here, we have not tried to optimize the hyperparameters specifically for the ensemble models, but the hyperparameters are set directly from the HPO from the global model. Nor have we done any proper hyperparameter optimization on chunk length or look-back length. 
 
-<details>
-<summary>Show Chunk MSE Figures</summary>
-<IMG width="650" height="420" src="figures/electricity/chunk_test_mse_iterative_electricity_xgboost-hopt.png"  alt="MSE over chunks for XGBoost"/>
 
-<br>
-
-<IMG width="650" height="420" src="figures/electricity/chunk_test_mse_iterative_electricity_tcn-hopt.png"  alt="MSE over chunks for TCN"/>
-
-<br>
-
-<IMG width="650" height="420" src="figures/electricity/chunk_test_mse_iterative_electricity_rnn-hopt.png"  alt="MSE over chunks for LSTM"/>
-
-<br>
-
-<IMG width="650" height="420" src="figures/electricity/chunk_test_mse_iterative_electricity_elastic-net-hopt.png"  alt="MSE over chunks for ElasticNet"/>
-</details>
-
-<br>
 
 ## Synthetic Dataset - Sine Experiment
 

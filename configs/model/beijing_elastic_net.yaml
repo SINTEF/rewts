@@ -1,11 +1,11 @@
 defaults:
   - elastic_net
 
-lags: 60
-output_chunk_length: 1
+lags: 11
+output_chunk_length: 3
 multi_models: False
 model:
-  l1_ratio: 0.1857709845164978
+  l1_ratio: 0.9998692393656119
 lags_future_covariates:
   _target_: builtins.tuple
   _args_:

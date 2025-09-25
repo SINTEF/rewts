@@ -2,8 +2,8 @@ defaults:
   - base_nontorch
 
 _target_: darts.models.forecasting.xgboost.XGBModel
-lags: 42
-output_chunk_length: 24
+lags: 66
+output_chunk_length: 1
 lags_future_covariates:
   _target_: builtins.tuple
   _args_:

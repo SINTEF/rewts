@@ -1,0 +1,35 @@
+# @package _global_
+
+defaults:
+  - base_data@datamodule
+
+datamodule:
+  _target_: src.datamodules.household_electricalpower_datamodule.HouseholdElectricityDatamodule
+  chunk_length: 2016
+  dataset_length: 207527
+  check_for_nan: True
+  data_variables:
+    target:
+      - "Global_active_power"
+    future_covariates:
+      - "Global_reactive_power"
+      - "Voltage"
+      - "Global_intensity"
+      - "Sub_metering_1"
+      - "Sub_metering_2"
+      - "Sub_metering_3"
+  processing_pipeline:
+    _target_: darts.dataprocessing.Pipeline
+    transformers:
+      - _target_: darts.dataprocessing.transformers.Scaler
+        global_fit: True
+        scaler:
+          _target_: sklearn.preprocessing.StandardScaler
+  train_val_test_split:
+    train: 0.75
+    val: 0.25
+
+
+#eval:
+#  kwargs:
+#    start_format: "position"

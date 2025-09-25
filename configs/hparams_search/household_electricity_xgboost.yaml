@@ -5,8 +5,8 @@
 
 defaults:
   - base
-  - override /datamodule: electricity
-  - override /model: electricity_xgboost
+  - override /datamodule: household_electricity
+  - override /model: household_electricity_xgboost
 
 model_type: "global"
 
@@ -22,8 +22,8 @@ lags_future_covariates:
 hydra:
   sweeper:
     # name of the study to persist optimization results
-    study_name: "electricity-xgboost-global"
+    study_name: "household-electricity-xgboost-global_3007"
     # define hyperparameter search space
     params:
-      ++model.lags: range(2, 96, 2) 
-      ++model.output_chunk_length: choice(1, 6, 12, 24)
+      ++model.lags: range(6, 72, 2) 
+      ++model.output_chunk_length: choice(1, 6, 12, 18)

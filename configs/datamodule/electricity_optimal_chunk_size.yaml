@@ -5,7 +5,7 @@ defaults:
 
 datamodule:
   _target_: src.datamodules.electricity_datamodule.ElectricityDatamodule
-  chunk_length: 672
+  chunk_length: 1344
   dataset_length: 45312
   check_for_nan: False
   data_variables:

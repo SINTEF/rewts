@@ -139,8 +139,25 @@ class ReWTSEnsembleModel(darts.models.forecasting.ensemble_model.EnsembleModel):
         """
         if num_samples != 1 or predict_likelihood_parameters:  # Probabilistic Ensemble
             raise NotImplementedError
+        if series is not None:
+            prediction_columns = series.columns
+        elif self.training_series is not None:
+            prediction_columns = self.training_series.columns
+        else:
+            prediction_columns = pd.Index(
+                [
+                    [
+                        column
+                        for column in predictions.columns
+                        if not column.startswith("constant")
+                    ][0]
+                ]
+
+            )
+
         return TimeSeries.from_times_and_values(
-            predictions.time_index, predictions.values() @ self.weights.astype(predictions.dtype)
+            predictions.time_index, predictions.values() @ self.weights.astype(predictions.dtype),
+            columns=prediction_columns
         )
 
     def fit(
@@ -245,7 +262,9 @@ class ReWTSEnsembleModel(darts.models.forecasting.ensemble_model.EnsembleModel):
                 **self._transform_data(m_i, pred_data),
                 enable_optimization=False,  # optimization seems to cause issues under some conditions
             )
-            predictions.append(self._inverse_transform_data(m_i, m_predictions))
+            
+            m_predictions = self._inverse_transform_data(m_i, m_predictions)
+            predictions.append(darts.utils.ts_utils.series2seq(m_predictions))
 
         if self._fit_data is not None:
             # Because we assume only time shift into the future, all new predictions are relevant and come sequentially after the last old relevant prediction
@@ -422,6 +441,7 @@ class ReWTSEnsembleModel(darts.models.forecasting.ensemble_model.EnsembleModel):
 
         if (
             self._fit_weights
+            and series is not None
             and len(series) >= self.lookback_data_length
             and len(series) - self._weights_last_update >= self.fit_weights_every
         ):
@@ -536,6 +556,7 @@ class ReWTSEnsembleModel(darts.models.forecasting.ensemble_model.EnsembleModel):
                         length=n,
                         freq=m_series.freq,
                         dtype=m_series.dtype,
+                        column_name=m_series.columns[0]
                     )
                 )  # TODO: does this work for multivariate?
                 continue

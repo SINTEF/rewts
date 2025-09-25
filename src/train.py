@@ -194,11 +194,16 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
             if datamodule.has_split_data("val"):
                 with open_dict(cfg):
                     cfg.eval.split = "val"
-                val_metric_dict, val_object_dict = src.eval.run(
-                    cfg, datamodule, model, logger=logger, trainer=trainer
-                )
-                object_dict.update({f"val_{k}": v for k, v in val_object_dict.items()})
-                metric_dict.update(val_metric_dict)
+                try:
+                    val_metric_dict, val_object_dict = src.eval.run(
+                        cfg, datamodule, model, logger=logger, trainer=trainer
+                    )
+                    object_dict.update({f"val_{k}": v for k, v in val_object_dict.items()})
+                    metric_dict.update(val_metric_dict)
+                except Exception as e:
+                    log.warning(
+                    f"Predictions on validation failed during src.eval.run, and cannot plot. Perhaps validation data gets too small? Continuing without validation metrics. Error: {e}"
+                    )
             else:
                 log.info(
                     "Validate argument was true but datamodule has no validation data. Skipping validation!"

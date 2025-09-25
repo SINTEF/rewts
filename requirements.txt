@@ -3,6 +3,12 @@ statsforecast==1.4.0 # newer statsforecast version is not compatible with darts
 darts==0.30.0
 pandas>=1.5.0
 
+#----------- torch ---------#
+torch<2.6.0
+
+#--------- pytorch lighning --------#
+pytorch-lightning==2.4.0
+
 # --------- hydra --------- #
 hydra-core>=1.3.2
 hydra-colorlog==1.2.0
@@ -35,3 +41,6 @@ pytest              # tests
 notebook            # jupyter notebook
 notifiers           # notifications
 ipywidgets          # for TDQM in jupyter notebooks
+seaborn             # for plotting
+scikit-learn==1.5   # before API changes in 1.6
+bottle<=0.12.25     # for optuna-dashboard

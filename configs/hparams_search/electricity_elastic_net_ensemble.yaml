@@ -20,8 +20,8 @@ hydra:
     study_name: "electricity-elastic-net-ensemble"
     # define hyperparameter search space
     params:
-      ++model.lags: range(2, ${MAX_LAGS}, 2) # between 2 hours and MAX_LAGS, with 1 hour increments
+      ++model.lags: range(2, ${MAX_LAGS}, 2) 
       ++model.output_chunk_length: choice(1, 6, 12, 24)
       ++model.model.l1_ratio: interval(0.0, 1.0)
-      ++datamodule.chunk_length: range(336, 2688, 48) # between 7 and 48 days with 1 day increments
+      ++datamodule.chunk_length: range(336, 2688, 48) 
       ++ensemble.lookback_data_length: range(${LOOKBACK_MIN_LENGTH}, ${LOOKBACK_MAX_LENGTH}, 8)

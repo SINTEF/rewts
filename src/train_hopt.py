@@ -76,6 +76,11 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
             os.path.join(run_base_dir, str(model_i)) for model_i in range(n_ensemble_models)
         ]
     elif cfg.model_type == "global":
+        
+        #Crop data range to include the subset of all data to train models for hyperparameter optimization:
+        #This is done by computing the number of chunks (given chunk length) that covers around 33 % of the data, and crop to the corresponding subset 
+         
+        cfg.datamodule.crop_data_range =  [0,math.floor(cfg.HOPT_DATA_FRACTION/(cfg.datamodule.chunk_length/cfg.datamodule.dataset_length))*cfg.datamodule.chunk_length]
         metric_dict, _ = src.train.train(cfg)
         eval_model_dir = cfg.paths.output_dir
     else:

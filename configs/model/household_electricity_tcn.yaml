@@ -5,11 +5,11 @@ defaults:
 
 model:
   _target_: darts.models.forecasting.tcn_model.TCNModel
-  input_chunk_length: 40
-  kernel_size: 15
-  num_filters: 13
+  input_chunk_length: 66
+  kernel_size: 10
+  num_filters: 11
   dilation_base: 3
-  output_chunk_length: 24
+  output_chunk_length: 18
   weight_norm: True
   num_layers: null # will set to get full history coverage
   loss_fn:
@@ -20,10 +20,9 @@ datamodule:
   data_variables:
     future_covariates: null
     past_covariates:
-      - "date"
-      - "day"
-      - "period"
-      - "nswdemand"
-      - "vicprice"
-      - "vicdemand"
-      - "transfer"
+      - "Global_reactive_power"
+      - "Voltage"
+      - "Global_intensity"
+      - "Sub_metering_1"
+      - "Sub_metering_2"
+      - "Sub_metering_3"

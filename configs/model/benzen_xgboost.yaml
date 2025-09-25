@@ -1,13 +1,12 @@
 defaults:
-  - elastic_net
+  - base_nontorch
 
-lags: 60
+_target_: darts.models.forecasting.xgboost.XGBModel
+lags: 10
 output_chunk_length: 1
-multi_models: False
-model:
-  l1_ratio: 0.1857709845164978
 lags_future_covariates:
   _target_: builtins.tuple
   _args_:
     - - ${model.lags}
       - ${model.output_chunk_length}
+early_stopping_rounds: 5

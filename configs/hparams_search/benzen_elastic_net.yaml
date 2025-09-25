@@ -5,16 +5,17 @@
 
 defaults:
   - base
-  - override /datamodule: electricity
-  - override /model: electricity_xgboost
+  - override /datamodule: benzenconcentration
+  - override /model: benzen_elastic_net
 
 model_type: "global"
 
-lags_future_covariates:
-  _target_: builtins.tuple
-  _args_:
-    - - ${model.lags}
-      - ${model.output_chunk_length}
+model:
+  lags_future_covariates:
+    _target_: builtins.tuple
+    _args_:
+      - - ${model.lags}
+        - ${model.output_chunk_length}
 
 # here we define Optuna hyperparameter search
 # it optimizes for value returned from function with @hydra.main decorator
@@ -22,8 +23,9 @@ lags_future_covariates:
 hydra:
   sweeper:
     # name of the study to persist optimization results
-    study_name: "electricity-xgboost-global"
+    study_name: "benzen-elastic-net-global"
     # define hyperparameter search space
     params:
-      ++model.lags: range(2, 96, 2) 
-      ++model.output_chunk_length: choice(1, 6, 12, 24)
+      ++model.lags: range(1, 12, 1) 
+      ++model.output_chunk_length: choice(1,3, 6)
+      ++model.model.l1_ratio: interval(0.0, 1.0)

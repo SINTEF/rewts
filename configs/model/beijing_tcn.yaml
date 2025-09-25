@@ -1,0 +1,48 @@
+# @package _global_
+
+defaults:
+  - base_torch
+
+model:
+  _target_: darts.models.forecasting.tcn_model.TCNModel
+  input_chunk_length: 23
+  kernel_size: 9
+  num_filters: 5
+  dilation_base: 2
+  output_chunk_length: 12
+  weight_norm: True
+  num_layers: null # will set to get full history coverage
+  loss_fn:
+    _target_: torch.nn.MSELoss
+
+# TCN does not accept future_covariates. Therefore, convert the future_covariates to past_covariates.
+datamodule:
+  data_variables:
+    future_covariates: null
+    past_covariates:
+      - "PM10"
+      - "SO2"
+      - "NO2"
+      - "CO"
+      - "O3"
+      - "TEMP"
+      - "PRES"
+      - "DEWP"
+      - "RAIN"
+      - "wd_E"
+      - "wd_ENE"
+      - "wd_ESE"
+      - "wd_N"
+      - "wd_NE"
+      - "wd_NNE"
+      - "wd_NNW"
+      - "wd_NW"
+      - "wd_S"
+      - "wd_SE"
+      - "wd_SSE"
+      - "wd_SSW"
+      - "wd_SW"
+      - "wd_W"
+      - "wd_WNW"
+      - "wd_WSW"
+      - "WSPM"

@@ -2,15 +2,15 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
-import scipy.io.arff
+import numpy as np
 
 from src.datamodules.components.chunked_timeseries_datamodule import (
     ChunkedTimeSeriesDataModule,
 )
 
 
-# https://www.openml.org/search?type=data&sort=runs&id=151&status=active
-class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
+# https://archive.ics.uci.edu/dataset/360/air+quality
+class BenzenDatamodule(ChunkedTimeSeriesDataModule):
     """Example data module for custom dataset.
 
     A DataModule implements 5 key methods:
@@ -41,7 +41,7 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
     def __init__(
         self,
         *args,  # you can add arguments unique to your dataset here that you use in .setup
-        filename: str = "electricity-normalized.arff",  # e.g. argument for filename of data file.
+        filename: str = "AirQualityUCI.xlsx",  # e.g. argument for filename of data file.
         # any argument listed here is configurable through the yaml config files and the command line.
         **kwargs
     ):
@@ -71,17 +71,29 @@ class ElectricityDatamodule(ChunkedTimeSeriesDataModule):
 
             # YOU MUST SET YOUR DATASET TO THE self.data ATTRIBUTE
             # If your data has a DatetimeIndex, you must localize timezone information (i.e. pd.tz_localize).
-            self.data, meta = scipy.io.arff.loadarff(
-                os.path.join(self.hparams.data_dir, self.hparams.filename)
-            )
-            self.data = pd.DataFrame(self.data)
-            self.data["day"] = pd.to_numeric(self.data["day"]) / 7
+        
 
             # If you want to process the chunk before passing it to finalize_setup you can explicitly call chunk_dataset
             # self.data = self.chunk_dataset(self.data)
             # and then process the data. Otherwise, it is called automatically in _finalize_setup
 
             # **************** INSERT CODE HERE TO LOAD DATASET INTO A COLUMN-FORMAT PANDAS DATAFRAME ****************
+            data = pd.read_excel(
+                os.path.normpath(os.path.join(self.hparams.data_dir, self.hparams.filename)) 
+            )
+
+            #Connect Date and Time column to one Time column:
+            data["Time"] =  pd.to_datetime(data['Date'].astype(str) + data['Time'].astype(str), format='%Y-%m-%d%H:%M:%S')
+            data.drop(["Date"], axis=1,inplace=True)
+
+            #Missing values are tagged -200. Set this to nan instead
+            data = data.replace(-200, np.nan)
+
+            #Perform linear interpolation in cases there are nan values:
+            data = data.interpolate(method = "linear")
+
+            self.data = data
+            self.data = self.data.set_index("Time")
 
             # Finally, call the _finalize_data_processing function from the base class which performs operations such as
             # data splitting and scaling etc.
@@ -98,7 +110,7 @@ if __name__ == "__main__":
     # Then check notebooks/data_explorer.ipynb to inspect if data looks as expected.
 
     cfg = src.utils.initialize_hydra(
-        os.path.join(os.pardir, os.pardir, "configs", "datamodule", "electricity.yaml"),
+        os.path.join(os.pardir, os.pardir, "configs", "datamodule", "benzenconcentration.yaml"),
         overrides_dict=dict(data_dir=os.path.join("..", "..", "data"), chunk_idx=3),
         print_config=False,
     )
