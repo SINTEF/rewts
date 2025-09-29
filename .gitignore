@@ -148,8 +148,11 @@ dmypy.json
 configs/local/default.yaml
 configs/local/slurm.yaml
 data/
+!data/electricity-normalized.arff
 logs/
 figures/
+!figures/chunk_ensemble_conceptual_illustration.jpg
+!figures/electricity/nswprice.png
 **/mlruns/
 .env
 .autoenv
