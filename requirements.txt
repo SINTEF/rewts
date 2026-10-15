@@ -12,7 +12,7 @@ pytorch-lightning==2.4.0
 # --------- hydra --------- #
 hydra-core>=1.3.2
 hydra-colorlog==1.2.0
-hydra-optuna-sweeper==1.2.0
+hydra-optuna-sweeper==1.3.0
 #optuna>=3.3.0  to fix issue with hyperparameter importances update optuna to >3.0.0
 #hydra-optuna-sweeper depends on optuna<3.0.0 and >=2.10.0 and as such this requirement cannot be put in requirements
 
